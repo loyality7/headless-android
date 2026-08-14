@@ -1,4 +1,4 @@
-﻿# `:headless` — the SDK
+# `:headless` — the SDK
 
 Empty on purpose. This module is gated on the probe returning a go.
 

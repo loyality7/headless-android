@@ -1,4 +1,4 @@
-﻿package dev.headless.probe
+package dev.headless.probe
 
 import android.net.LocalSocket
 import android.net.LocalSocketAddress

@@ -1,4 +1,4 @@
-﻿pluginManagement {
+pluginManagement {
     repositories {
         google()
         mavenCentral()
@@ -15,5 +15,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "headless-android"
 
-// Probe only. The library module lands after the probe returns a go.
+include(":headless")
+
+// The probe is throwaway: it measures the device before the library relies on it.
 include(":probe")
