@@ -49,10 +49,30 @@ class OffscreenHostTest {
     fun reportsTheModeItActuallyObtained() {
         val hosted = create()
 
-        // Either is a correct answer. What must never happen is claiming an
-        // attached window on a device that refused one.
-        assertTrue(hosted.mode == HostMode.AttachedOverlay || hosted.mode == HostMode.Detached)
+        // Any of the three is a correct answer for some device. What must never
+        // happen is claiming an arrangement that was not obtained.
+        assertTrue(hosted.mode in HostMode.entries)
         assertEquals(host.availableMode(), hosted.mode)
+    }
+
+    @Test
+    fun anApplicationContextCannotAttachToAHostActivity() {
+        // The instrumentation target context is not an activity, so the host has
+        // nothing to attach into and must not pretend otherwise.
+        assertTrue(host.availableMode() != HostMode.AttachedToHost)
+    }
+
+    @Test
+    fun theHostActivityIsHeldWeakly() {
+        // A browser outlives any one screen. Holding the activity strongly would
+        // leak its entire view hierarchy for as long as the browser exists.
+        val field = OffscreenHost::class.java.getDeclaredField("hostActivity")
+        field.isAccessible = true
+        val held = field.get(host)
+        assertTrue(
+            "the host activity must be held weakly, was ${held?.javaClass?.name}",
+            held == null || held is java.lang.ref.WeakReference<*>,
+        )
     }
 
     @Test

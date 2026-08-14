@@ -1,6 +1,7 @@
 package dev.headless.browser.platform
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Build
@@ -10,9 +11,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.WebView
+import android.widget.FrameLayout
 import dev.headless.browser.ErrorCode
 import dev.headless.browser.Viewport
 import dev.headless.browser.browserError
+import java.lang.ref.WeakReference
 
 /**
  * How a session's WebView is hosted, and what that costs.
@@ -23,10 +26,23 @@ import dev.headless.browser.browserError
  */
 public enum class HostMode {
     /**
-     * Attached to a window, positioned off the display.
+     * Inside the host app's own activity, behind its content and invisible.
      *
-     * Timers and animation frames run unthrottled and the view renders, so
-     * drawing it produces the page. Needs permission to draw overlays.
+     * The best arrangement available, and the one to prefer: the view is in a
+     * real window with a real size, so the renderer keeps it updated and
+     * drawing it produces the page — yet it needs no permission and creates no
+     * window of its own, which is what a vendor would refuse.
+     *
+     * Requires the caller to have created the browser with an activity.
+     */
+    AttachedToHost,
+
+    /**
+     * Attached to a window of our own, positioned off the display.
+     *
+     * Same behaviour as [AttachedToHost] without needing an activity, at the
+     * cost of permission to draw overlays — which a user must grant by hand and
+     * some vendors make awkward.
      */
     AttachedOverlay,
 
@@ -54,13 +70,27 @@ internal class OffscreenHost(context: Context) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
     /**
-     * The best hosting this device and app will allow.
-     *
-     * Checked per call rather than cached: overlay permission can be granted or
-     * revoked while the process lives.
+     * Held weakly. An activity outlived by this object is a leak of the whole
+     * view hierarchy, and a browser is meant to outlive any one screen.
      */
-    fun availableMode(): HostMode =
-        if (canDrawOverlays()) HostMode.AttachedOverlay else HostMode.Detached
+    private val hostActivity: WeakReference<Activity>? =
+        (context as? Activity)?.let { WeakReference(it) }
+
+    /**
+     * The best hosting this device and app will allow, in preference order.
+     *
+     * Checked per call rather than cached: an activity finishes, and overlay
+     * permission can be granted or revoked, while the process lives on.
+     */
+    fun availableMode(): HostMode = when {
+        liveHostActivity() != null -> HostMode.AttachedToHost
+        canDrawOverlays() -> HostMode.AttachedOverlay
+        else -> HostMode.Detached
+    }
+
+    /** The host activity, if it still exists and is still usable. */
+    private fun liveHostActivity(): Activity? =
+        hostActivity?.get()?.takeIf { !it.isFinishing && !it.isDestroyed }
 
     /** Whether an overlay window is permitted. Granted by the user, and revocable. */
     private fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(context)
@@ -93,11 +123,33 @@ internal class OffscreenHost(context: Context) {
 
         val mode = availableMode()
         when (mode) {
+            HostMode.AttachedToHost -> attachToHostActivity(webView, width, height)
             HostMode.AttachedOverlay -> attachOffscreen(webView, width, height)
             HostMode.Detached -> layOutDetached(webView, width, height)
         }
 
         return HostedWebView(webView, mode, width, height)
+    }
+
+    /**
+     * Adds the view to the host activity's content, behind everything it draws.
+     *
+     * Index zero and `INVISIBLE`, so it occupies no visual space and cannot be
+     * seen or touched, while still living in a real window at a real size. No
+     * permission is involved and no window is created, which is what makes this
+     * work on devices that refuse an overlay.
+     */
+    private fun attachToHostActivity(webView: WebView, width: Int, height: Int) {
+        val activity = liveHostActivity()
+            ?: throw browserError(ErrorCode.DETACHED, "the host activity went away before the session started")
+
+        val content = activity.findViewById<ViewGroup>(android.R.id.content)
+        val parent = content?.getChildAt(0) as? ViewGroup
+            ?: throw browserError(ErrorCode.UNSUPPORTED, "the host activity has no content view to attach to")
+
+        webView.layoutParams = FrameLayout.LayoutParams(width, height)
+        webView.visibility = View.INVISIBLE
+        parent.addView(webView, 0)
     }
 
     /**
@@ -151,6 +203,7 @@ internal class OffscreenHost(context: Context) {
         webView.webChromeClient = null
 
         when (hosted.mode) {
+            HostMode.AttachedToHost -> (webView.parent as? ViewGroup)?.removeView(webView)
             HostMode.AttachedOverlay -> runCatching { windowManager.removeViewImmediate(webView) }
             HostMode.Detached -> (webView.parent as? ViewGroup)?.removeView(webView)
         }
@@ -187,5 +240,5 @@ internal class HostedWebView(
 
     /** Drawing only produces the page from an attached view of real size. */
     val canCapture: Boolean
-        get() = mode == HostMode.AttachedOverlay && width > 1 && height > 1
+        get() = mode != HostMode.Detached && width > 1 && height > 1
 }
