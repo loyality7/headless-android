@@ -1,4 +1,4 @@
-package dev.headless.spike
+﻿package dev.headless.probe
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.json.JSONObject
@@ -9,14 +9,14 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Spike section 0: is the control endpoint reachable from inside the app, and
+ * Probe section 0: is the control endpoint reachable from inside the app, and
  * what does this build's protocol surface actually answer?
  *
  * The whole protocol backend is gated on these passing. If they do not, the
  * platform backend is the library.
  */
 @RunWith(AndroidJUnit4::class)
-class SocketSpikeTest {
+class DevToolsEndpointTest {
 
     @Before
     fun setUp() = enableDebugging()
@@ -59,7 +59,7 @@ class SocketSpikeTest {
         host.load(webView, "about:blank")
 
         session(host) { cdp ->
-            assertEquals("\"spike\"", cdp.evaluate("'spike'"))
+            assertEquals("\"probe\"", cdp.evaluate("'probe'"))
             cdp.send("Page.enable")
             cdp.send(
                 "Page.navigate",
@@ -120,7 +120,7 @@ internal fun <T> session(host: HostActivity, block: (CdpSession) -> T): T {
     return CdpSession(WebSocket.connect(name, "/$path")).use(block)
 }
 
-/** Polls [probe] until it returns non-null. No fixed sleeps anywhere in the spike. */
+/** Polls [probe] until it returns non-null. No fixed sleeps anywhere in the probe. */
 internal fun <T : Any> waitFor(timeoutMs: Long, probe: () -> T?): T {
     val deadline = System.currentTimeMillis() + timeoutMs
     while (System.currentTimeMillis() < deadline) {

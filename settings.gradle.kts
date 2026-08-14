@@ -1,4 +1,4 @@
-pluginManagement {
+﻿pluginManagement {
     repositories {
         google()
         mavenCentral()
@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "headless-android"
 
-// Spike only. The library module lands after the spike returns a go.
-include(":spike")
+// Probe only. The library module lands after the probe returns a go.
+include(":probe")

@@ -15,16 +15,20 @@ it.
 
 ## Status
 
-Pre-alpha. The feasibility spike is written and unrun. Nothing is published.
+Pre-alpha. The device probe is written and unrun. Nothing is published.
 
-## Running the spike
+## Running the probe
+
+`probe/` asks a real device three questions before any library code is written:
+is the WebView control endpoint reachable in-process, which protocol methods
+this device's WebView actually implements, and does a session cycle leak.
 
 Needs a connected device — an emulator cannot answer the OEM and SELinux
-questions the spike exists to settle.
+questions the probe exists to settle.
 
 ```
-./gradlew :spike:connectedAndroidTest
-adb logcat -s spike:I
+./gradlew :probe:connectedAndroidTest
+adb logcat -s probe:I
 ```
 
 Every measurement is logged as `MEASUREMENT <key> = <value>`.

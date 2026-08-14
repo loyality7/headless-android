@@ -1,4 +1,4 @@
-package dev.headless.spike
+﻿package dev.headless.probe
 
 import android.app.Activity
 import android.os.Bundle
@@ -7,7 +7,7 @@ import android.webkit.WebView
 import android.widget.FrameLayout
 
 /**
- * Host window for the spike's WebViews. Attached and VISIBLE, but sized and
+ * Host window for the probe's WebViews. Attached and VISIBLE, but sized and
  * positioned so nothing is seen — the arrangement D3 requires. A detached view
  * is measured here for comparison, never used as the working environment.
  */

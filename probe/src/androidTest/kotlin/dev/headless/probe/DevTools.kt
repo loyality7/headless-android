@@ -1,4 +1,4 @@
-package dev.headless.spike
+﻿package dev.headless.probe
 
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
@@ -15,7 +15,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 
 /**
- * Everything the spike needs to reach the WebView DevTools endpoint from inside
+ * Everything the probe needs to reach the WebView DevTools endpoint from inside
  * the app: socket discovery, the HTTP discovery endpoints, an RFC 6455 client
  * over the socket streams, and a minimal CDP session on top.
  *

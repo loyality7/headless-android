@@ -1,4 +1,4 @@
-package dev.headless.spike
+﻿package dev.headless.probe
 
 import android.app.Activity
 import android.util.Log
@@ -6,9 +6,9 @@ import android.webkit.WebView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 
-const val TAG = "spike"
+const val TAG = "probe"
 
-/** Everything the spike measures gets logged in one grep-able shape. */
+/** Everything the probe measures gets logged in one grep-able shape. */
 fun record(key: String, value: Any?) = Log.i(TAG, "MEASUREMENT $key = $value")
 
 /**

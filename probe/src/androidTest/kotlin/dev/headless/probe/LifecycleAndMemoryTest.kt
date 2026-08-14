@@ -1,4 +1,4 @@
-package dev.headless.spike
+﻿package dev.headless.probe
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -9,7 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Spike sections: does the session cycle leak, does an attached-offscreen view
+ * Probe sections: does the session cycle leak, does an attached-offscreen view
  * behave differently from a detached one, and does drawing the view produce the
  * rendered page?
  *
@@ -17,7 +17,7 @@ import org.junit.runner.RunWith
  * the log are the deliverable, not a pass mark.
  */
 @RunWith(AndroidJUnit4::class)
-class MemorySpikeTest {
+class LifecycleAndMemoryTest {
 
     private val cycles = 100
 

@@ -1,10 +1,10 @@
-plugins {
+﻿plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
 }
 
 android {
-    namespace = "dev.headless.spike"
+    namespace = "dev.headless.probe"
     compileSdk = 34
 
     defaultConfig {
@@ -22,7 +22,7 @@ kotlin {
     jvmToolchain(17)
 }
 
-// Spike deliberately has no runtime dependencies: org.json and android.net.LocalSocket
+// The probe deliberately has no runtime dependencies: org.json and android.net.LocalSocket
 // are on the platform. Only the test harness is pulled in.
 dependencies {
     androidTestImplementation(libs.androidx.test.core)
