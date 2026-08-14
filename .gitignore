@@ -1,0 +1,24 @@
+# Internal — never published.
+goals/
+research/
+inspire/
+
+# Gradle / Android
+.gradle/
+build/
+local.properties
+*.apk
+*.aar
+*.ap_
+*.dex
+captures/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
