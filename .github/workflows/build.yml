@@ -1,0 +1,52 @@
+name: build
+
+# Every push and every pull request. The failures this project cares about are
+# leaks and orphaned sessions, which only instrumented tests catch, but a red
+# unit test or a lint error should never reach a branch in the first place.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Unit tests
+        run: ./gradlew test --stacktrace
+
+      - name: Lint
+        run: ./gradlew lint --stacktrace
+
+      # Uploaded on failure only: a green run has nothing worth reading, and a
+      # red one is unreadable from the log alone.
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/reports/lint-results-*.html
+            **/build/test-results/
+          retention-days: 14
