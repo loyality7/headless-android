@@ -22,9 +22,8 @@ class DevToolsEndpointTest {
     fun setUp() = enableDebugging()
 
     @Test
-    fun socketIsReachableInProcess() = withHost { host ->
-        val webView = onMain { host.addWebView(1, 1) }
-        host.load(webView, "about:blank")
+    fun socketIsReachableInProcess() = withDetachedWebView { webView ->
+        loadDetached(webView, "about:blank")
 
         val (name, socket) = SocketDiscovery.connectAny()
         socket.use {
@@ -32,13 +31,11 @@ class DevToolsEndpointTest {
             record("socket.candidates", SocketDiscovery.candidates())
             record("socket.procNetUnix", SocketDiscovery.fromProcNetUnix())
         }
-        onMain { host.destroyWebView(webView) }
     }
 
     @Test
-    fun discoveryEndpointsParse() = withHost { host ->
-        val webView = onMain { host.addWebView(1, 1) }
-        host.load(webView, "about:blank")
+    fun discoveryEndpointsParse() = withDetachedWebView { webView ->
+        loadDetached(webView, "about:blank")
         val (name, socket) = SocketDiscovery.connectAny()
         socket.close()
 
@@ -49,38 +46,45 @@ class DevToolsEndpointTest {
         record("json.targetCount", targets.size)
         record("json.targets", targets.map { it.optString("url") })
         assertTrue("no page target exposed", targets.any { it.has("webSocketDebuggerUrl") })
-
-        onMain { host.destroyWebView(webView) }
     }
 
     @Test
-    fun protocolRoundTrips() = withHost { host ->
-        val webView = onMain { host.addWebView(1, 1) }
-        host.load(webView, "about:blank")
+    fun protocolRoundTrips() = withDetachedWebView { webView ->
+        record("roundtrip.step", "webview created")
+        loadDetached(webView, "about:blank")
+        record("roundtrip.step", "about:blank loaded")
 
-        session(host) { cdp ->
-            assertEquals("\"probe\"", cdp.evaluate("'probe'"))
+        session { cdp ->
+            // evaluate returns the unwrapped value, so a JavaScript string comes
+            // back as its characters rather than as a quoted JSON literal.
+            assertEquals("probe", cdp.evaluate("'probe'"))
+            assertEquals("4", cdp.evaluate("2 + 2"))
+            record("roundtrip.step", "evaluate works")
+
             cdp.send("Page.enable")
+            record("roundtrip.step", "Page.enable returned")
+
             cdp.send(
                 "Page.navigate",
                 JSONObject().put("url", "data:text/html,<h1 id=t>hello</h1>")
             )
-            // Poll rather than sleep: the document is swapped asynchronously.
-            val title = waitFor(10_000) {
-                cdp.evaluate("document.getElementById('t')?.textContent ?? null")
-                    .takeIf { it == "\"hello\"" }
-            }
-            assertEquals("\"hello\"", title)
-        }
+            record("roundtrip.step", "Page.navigate returned")
 
-        onMain { host.destroyWebView(webView) }
+            // Poll rather than sleep: the document is swapped asynchronously.
+            val heading = waitFor(10_000) {
+                runCatching {
+                    cdp.evaluate("document.getElementById('t') ? document.getElementById('t').textContent : null")
+                }.getOrNull().takeIf { it == "hello" }
+            }
+            record("protocol.navigateAndRead", heading)
+            assertEquals("hello", heading)
+        }
     }
 
     /** The capability matrix. Output is the table the go/no-go decision is written from. */
     @Test
-    fun capabilityMatrix() = withHost { host ->
-        val webView = onMain { host.addWebView(360, 640) }
-        host.load(webView, "about:blank")
+    fun capabilityMatrix() = withDetachedWebView { webView ->
+        loadDetached(webView, "about:blank")
 
         val probes = listOf(
             "Page.enable" to JSONObject(),
@@ -100,32 +104,41 @@ class DevToolsEndpointTest {
             "Tracing.getCategories" to JSONObject(),
         )
 
-        session(host) { cdp ->
+        session { cdp ->
             for ((method, params) in probes) {
                 val supported = runCatching { cdp.supports(method, params) }.getOrElse { false }
                 record("capability.$method", supported)
             }
         }
-
-        onMain { host.destroyWebView(webView) }
     }
 }
 
 /** Opens a CDP session against the newest page target and closes it on every path. */
-internal fun <T> session(host: HostActivity, block: (CdpSession) -> T): T {
+internal fun <T> session(block: (CdpSession) -> T): T {
     val (name, socket) = SocketDiscovery.connectAny()
     socket.close()
+
     val target = DevToolsHttp.targets(name).first { it.has("webSocketDebuggerUrl") }
-    val path = target.getString("webSocketDebuggerUrl").substringAfter("://").substringAfter('/')
-    return CdpSession(WebSocket.connect(name, "/$path")).use(block)
+    val debuggerUrl = target.getString("webSocketDebuggerUrl")
+    record("session.targetUrl", target.optString("url"))
+    record("session.debuggerUrl", debuggerUrl)
+
+    val path = "/" + debuggerUrl.substringAfter("://").substringAfter('/')
+    return CdpSession(WebSocket.connect(name, path)).use(block)
 }
 
-/** Polls [probe] until it returns non-null. No fixed sleeps anywhere in the probe. */
-internal fun <T : Any> waitFor(timeoutMs: Long, probe: () -> T?): T {
+/**
+ * Polls [probe] until it returns non-null. No fixed sleeps anywhere in the probe.
+ *
+ * The interval is deliberately not tight: each poll is a protocol round trip,
+ * and a 50 ms loop issued enough commands to overwhelm the instrumentation
+ * channel and take the test process down with it.
+ */
+internal fun <T : Any> waitFor(timeoutMs: Long, intervalMs: Long = 250, probe: () -> T?): T {
     val deadline = System.currentTimeMillis() + timeoutMs
     while (System.currentTimeMillis() < deadline) {
         probe()?.let { return it }
-        Thread.sleep(50)
+        Thread.sleep(intervalMs)
     }
     error("condition not met within ${timeoutMs}ms")
 }

@@ -8,8 +8,22 @@ import androidx.test.platform.app.InstrumentationRegistry
 
 const val TAG = "probe"
 
-/** Everything the probe measures gets logged in one grep-able shape. */
-fun record(key: String, value: Any?) = Log.i(TAG, "MEASUREMENT $key = $value")
+/**
+ * Everything the probe measures, in one grep-able shape.
+ *
+ * Reported through the instrumentation status channel as well as logcat: MIUI
+ * suppresses application log output by default, and a measurement nobody can
+ * read is not a measurement. The status channel prints directly into the
+ * `am instrument` output on every device.
+ */
+fun record(key: String, value: Any?) {
+    val line = "MEASUREMENT $key = $value"
+    Log.i(TAG, line)
+    InstrumentationRegistry.getInstrumentation().sendStatus(
+        0,
+        android.os.Bundle().apply { putString("stream", "\n$line") },
+    )
+}
 
 /**
  * Process-wide and opt-in, per C9. Enabling it makes every WebView in this
@@ -38,6 +52,57 @@ fun <T> withHost(block: (HostActivity) -> T): T {
         var activity: HostActivity? = null
         scenario.onActivity { activity = it }
         return block(requireNotNull(activity) { "host activity never started" })
+    }
+}
+
+/**
+ * Runs [block] with a WebView and no activity at all.
+ *
+ * The control endpoint opens when a WebView exists in the process with debugging
+ * enabled; it does not care whether anything is on screen. Only the tests that
+ * measure throttling and drawing need a window, so the rest avoid one — which
+ * also avoids MIUI, where an app that is not already in the foreground is
+ * refused permission to show an activity.
+ *
+ * Not the arrangement the library will ship. It is the arrangement that answers
+ * the protocol questions without a vendor policy in the way.
+ */
+fun <T> withDetachedWebView(block: (android.webkit.WebView) -> T): T {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val webView = onMain {
+        android.webkit.WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            // Laid out so the renderer has a surface to work against, even
+            // though nothing is attached to a window.
+            measure(1, 1)
+            layout(0, 0, 1, 1)
+        }
+    }
+    try {
+        return block(webView)
+    } finally {
+        onMain {
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.clearHistory()
+            webView.removeAllViews()
+            webView.destroy()
+        }
+    }
+}
+
+/** Loads [url] into a WebView that has no activity, waiting for the load to finish. */
+fun loadDetached(webView: android.webkit.WebView, url: String, timeoutMs: Long = 30_000) {
+    val finished = java.util.concurrent.CountDownLatch(1)
+    onMain {
+        webView.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageFinished(view: android.webkit.WebView, loadedUrl: String) = finished.countDown()
+        }
+        webView.loadUrl(url)
+    }
+    check(finished.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+        "page did not finish loading within ${timeoutMs}ms: $url"
     }
 }
 

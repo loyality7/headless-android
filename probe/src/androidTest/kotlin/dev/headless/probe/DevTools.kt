@@ -42,8 +42,14 @@ object SocketDiscovery {
         emptyList()
     }
 
-    fun connect(name: String): LocalSocket = LocalSocket().apply {
+    /**
+     * A read timeout is not optional here. LocalSocket blocks forever by
+     * default, so anything the endpoint declines to answer hangs the whole run
+     * with no indication of where it stopped.
+     */
+    fun connect(name: String, readTimeoutMillis: Int = 10_000): LocalSocket = LocalSocket().apply {
         connect(LocalSocketAddress(name, LocalSocketAddress.Namespace.ABSTRACT))
+        soTimeout = readTimeoutMillis
     }
 
     /** First name that connects, with the name it was reached by. */
@@ -63,17 +69,89 @@ object SocketDiscovery {
 /** One-shot HTTP/1.1 request over the socket. The server speaks plain HTTP before any upgrade. */
 object DevToolsHttp {
 
+    /**
+     * Reads exactly the body the server announced.
+     *
+     * Never read to end-of-stream here: the DevTools server keeps the connection
+     * alive regardless of the Connection header, so a read-until-EOF blocks
+     * until the test runner gives up and kills the process.
+     */
     fun get(name: String, path: String): String {
         SocketDiscovery.connect(name).use { socket ->
             socket.outputStream.write(
                 ("GET $path HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").toByteArray()
             )
             socket.outputStream.flush()
-            val raw = socket.inputStream.readBytes().toString(Charsets.UTF_8)
-            val split = raw.indexOf("\r\n\r\n")
-            require(split >= 0) { "malformed HTTP response: ${raw.take(200)}" }
-            return raw.substring(split + 4)
+
+            val input = BufferedInputStream(socket.inputStream)
+            val headers = readHeaderLines(input)
+            val status = headers.firstOrNull().orEmpty()
+            require(status.contains("200")) { "unexpected status: $status" }
+
+            val length = headers
+                .firstOrNull { it.startsWith("Content-Length:", ignoreCase = true) }
+                ?.substringAfter(':')?.trim()?.toIntOrNull()
+
+            return when {
+                length != null -> ByteArray(length)
+                    .also { readFully(input, it) }
+                    .toString(Charsets.UTF_8)
+
+                headers.any { it.equals("Transfer-Encoding: chunked", ignoreCase = true) } ->
+                    readChunked(input)
+
+                // No framing offered: the server intends to close, so EOF is the end.
+                else -> input.readBytes().toString(Charsets.UTF_8)
+            }
         }
+    }
+
+    private fun readHeaderLines(input: InputStream): List<String> {
+        val buffer = ByteArrayOutputStream()
+        var state = 0
+        while (state < 4) {
+            val b = input.read()
+            check(b >= 0) { "socket closed while reading headers" }
+            buffer.write(b)
+            state = when {
+                b == '\r'.code && state % 2 == 0 -> state + 1
+                b == '\n'.code && state % 2 == 1 -> state + 1
+                else -> 0
+            }
+        }
+        return buffer.toString("UTF-8").split("\r\n").filter { it.isNotEmpty() }
+    }
+
+    private fun readFully(input: InputStream, into: ByteArray) {
+        var read = 0
+        while (read < into.size) {
+            val n = input.read(into, read, into.size - read)
+            check(n > 0) { "socket closed after $read of ${into.size} bytes" }
+            read += n
+        }
+    }
+
+    private fun readChunked(input: InputStream): String {
+        val body = ByteArrayOutputStream()
+        while (true) {
+            val size = readLine(input).trim().substringBefore(';').toIntOrNull(16) ?: break
+            if (size == 0) break
+            val chunk = ByteArray(size)
+            readFully(input, chunk)
+            body.write(chunk)
+            readLine(input) // trailing CRLF
+        }
+        return body.toString("UTF-8")
+    }
+
+    private fun readLine(input: InputStream): String {
+        val line = StringBuilder()
+        while (true) {
+            val b = input.read()
+            if (b < 0 || b == '\n'.code) break
+            if (b != '\r'.code) line.append(b.toChar())
+        }
+        return line.toString()
     }
 
     /** Page targets, newest first. */
@@ -107,6 +185,7 @@ class WebSocket private constructor(
 
         /** Connects and performs the upgrade handshake. [path] is the debugger URL's path. */
         fun connect(socketName: String, path: String): WebSocket {
+            record("ws.connecting", path)
             val socket = SocketDiscovery.connect(socketName)
             val out = socket.outputStream
             val input = BufferedInputStream(socket.inputStream)
@@ -127,6 +206,7 @@ class WebSocket private constructor(
             out.flush()
 
             val headers = readHeaders(input)
+            record("ws.handshake", headers.firstOrNull())
             check(headers.first().contains("101")) { "upgrade refused: ${headers.first()}" }
 
             val expected = MessageDigest.getInstance("SHA-1")
@@ -243,17 +323,31 @@ class CdpSession(private val ws: WebSocket) : AutoCloseable {
     private var nextId = 0
     val events = mutableListOf<JSONObject>()
 
-    /** Sends [method] and returns the matching response. Events seen on the way are kept. */
-    fun send(method: String, params: JSONObject = JSONObject()): JSONObject {
+    /**
+     * Sends [method] and returns the matching response. Events seen on the way
+     * are kept.
+     *
+     * Bounded by a deadline: a busy page can emit events indefinitely, and
+     * without a ceiling a response that never arrives is indistinguishable from
+     * one that has not arrived yet.
+     */
+    fun send(
+        method: String,
+        params: JSONObject = JSONObject(),
+        timeoutMillis: Long = 15_000,
+    ): JSONObject {
         val id = ++nextId
         ws.sendText(
             JSONObject().put("id", id).put("method", method).put("params", params).toString()
         )
-        while (true) {
+
+        val deadline = System.currentTimeMillis() + timeoutMillis
+        while (System.currentTimeMillis() < deadline) {
             val message = JSONObject(ws.receiveText())
             if (message.optInt("id", -1) == id) return message
             events += message
         }
+        error("no response to $method within ${timeoutMillis}ms, ${events.size} events seen")
     }
 
     /** Convenience: evaluate an expression and return its primitive value as a string. */
@@ -266,9 +360,20 @@ class CdpSession(private val ws: WebSocket) : AutoCloseable {
         return response.getJSONObject("result").getJSONObject("result").opt("value").toString()
     }
 
-    /** True when the method exists on this build. "Method not found" is the signal we probe for. */
-    fun supports(method: String, params: JSONObject = JSONObject()): Boolean {
-        val response = send(method, params)
+    /**
+     * True when the method exists on this build. "Method not found" is the
+     * signal we probe for.
+     *
+     * Short deadline on purpose: a method that answers slowly is being probed,
+     * not used, and fourteen of them at the full command timeout outlast the
+     * whole chunk.
+     */
+    fun supports(
+        method: String,
+        params: JSONObject = JSONObject(),
+        timeoutMillis: Long = 5_000,
+    ): Boolean {
+        val response = send(method, params, timeoutMillis)
         val error = response.optJSONObject("error") ?: return true
         return error.optInt("code") != -32601
     }

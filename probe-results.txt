@@ -1,0 +1,17 @@
+probe run 2026-08-15 00:17
+device: 22041219PI, Android 14 (API 34), WebView 152.0.7977.30
+MEASUREMENT memory.baselineKb = 69331
+MEASUREMENT memory.cycle0.pssKb = 70526
+MEASUREMENT memory.cycle10.pssKb = 70832
+MEASUREMENT memory.cycle20.pssKb = 72482
+MEASUREMENT memory.cycle30.pssKb = 71651
+MEASUREMENT memory.cycle40.pssKb = 73271
+MEASUREMENT memory.cycle50.pssKb = 72087
+MEASUREMENT memory.cycle60.pssKb = 73495
+MEASUREMENT memory.cycle70.pssKb = 74948
+MEASUREMENT memory.cycle80.pssKb = 72920
+MEASUREMENT memory.cycle90.pssKb = 74387
+MEASUREMENT memory.afterKb = 71603
+MEASUREMENT memory.growthKb = 2272
+MEASUREMENT memory.growthPerCycleKb = 22.
+RESULT memory = pass (12s)

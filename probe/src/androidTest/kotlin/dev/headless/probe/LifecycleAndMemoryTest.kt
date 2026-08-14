@@ -22,15 +22,15 @@ class LifecycleAndMemoryTest {
     private val cycles = 100
 
     @Test
-    fun hundredCyclesReturnToBaseline() = withHost { host ->
+    fun hundredCyclesReturnToBaseline() {
         // One warm cycle first: the WebView provider loads once and never unloads.
-        cycle(host)
+        cycle()
         Runtime.getRuntime().gc()
         val baseline = pssKb()
         record("memory.baselineKb", baseline)
 
         repeat(cycles) { i ->
-            cycle(host)
+            cycle()
             if (i % 10 == 0) record("memory.cycle$i.pssKb", pssKb())
         }
 
@@ -86,10 +86,15 @@ class LifecycleAndMemoryTest {
         onMain { host.destroyWebView(onePixel) }
     }
 
-    private fun cycle(host: HostActivity) {
-        val webView = onMain { host.addWebView(1, 1) }
-        host.load(webView, "data:text/html,<h1>cycle</h1>")
-        onMain { host.destroyWebView(webView) }
+    /**
+     * One full session: create, load, destroy.
+     *
+     * No activity involved. The cycle being measured is the WebView's own
+     * lifetime, and requiring a window would make this untestable on devices
+     * whose vendor refuses a background activity start.
+     */
+    private fun cycle() = withDetachedWebView { webView ->
+        loadDetached(webView, "data:text/html,<h1>cycle</h1>")
     }
 
     private fun tickCount(webView: WebView): Int = countAfterOneSecond(webView, "__ticks")
