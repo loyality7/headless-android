@@ -108,4 +108,18 @@ class PlatformReaderTest {
         assertNotNull(content)
         assertTrue("Text should contain row content", text.contains("row 0"))
     }
+
+    @Test
+    fun readsLivePublicWebsiteExampleCom() = runBlocking {
+        navigator.goto("https://example.com", WaitUntil.Load)
+        val title = reader.title()
+        val heading = reader.querySelector("h1")
+        val paragraph = reader.querySelector("p")
+
+        assertEquals("Example Domain", title)
+        assertEquals("h1", heading?.tag)
+        assertEquals("Example Domain", heading?.text)
+        assertNotNull(paragraph)
+        assertTrue("Paragraph text should be non-empty", paragraph!!.text.isNotBlank())
+    }
 }
