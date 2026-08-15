@@ -47,10 +47,14 @@ class CdpChannelTest {
             // Server reads until both command frames arrive from client
             var totalRead = 0
             val readBuf = ByteArray(4096)
-            while (totalRead < 60) {
+            while (totalRead < 30) {
                 val n = serverIn.read(readBuf, totalRead, readBuf.size - totalRead)
                 if (n <= 0) break
                 totalRead += n
+                if (serverIn.available() > 0) {
+                    val extra = serverIn.read(readBuf, totalRead, readBuf.size - totalRead)
+                    if (extra > 0) totalRead += extra
+                }
             }
 
             // Send response for command ID 2 first (unmasked text frame)
@@ -63,6 +67,12 @@ class CdpChannelTest {
             val frame1 = byteArrayOf(0x81.toByte(), resp1.length.toByte()) + resp1.toByteArray()
             serverOut.write(frame1)
             serverOut.flush()
+
+            // Keep server thread alive reading until client closes channel
+            runCatching {
+                val dummy = ByteArray(1024)
+                while (serverIn.read(dummy) != -1) {}
+            }
         }
         serverThread.start()
 
