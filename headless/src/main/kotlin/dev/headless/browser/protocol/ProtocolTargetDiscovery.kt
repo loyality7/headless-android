@@ -23,6 +23,7 @@ public data class ProtocolTarget(
     public val title: String,
     public val url: String,
     public val webSocketDebuggerUrl: String?,
+    public val socketName: String = "",
 )
 
 /**
@@ -117,14 +118,14 @@ internal class ProtocolTargetDiscovery(
             val responseBytes = input.readBytes()
             val responseString = String(responseBytes, StandardCharsets.UTF_8)
 
-            parseHttpResponseJson(responseString)
+            parseHttpResponseJson(responseString, socketName)
         } finally {
             runCatching { socket.close() }
         }
     }
 
     internal companion object {
-        fun parseHttpResponseJson(response: String): List<ProtocolTarget> {
+        fun parseHttpResponseJson(response: String, socketName: String = ""): List<ProtocolTarget> {
             val headerBodySplit = response.split(Regex("\r?\n\r?\n"), limit = 2)
             if (headerBodySplit.isEmpty()) return emptyList()
 
@@ -161,6 +162,7 @@ internal class ProtocolTargetDiscovery(
                             title = title,
                             url = url,
                             webSocketDebuggerUrl = wsUrl,
+                            socketName = socketName,
                         )
                     )
                 }

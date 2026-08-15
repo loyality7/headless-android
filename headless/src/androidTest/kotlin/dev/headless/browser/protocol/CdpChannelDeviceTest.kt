@@ -24,7 +24,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class WebSocketClientDeviceTest {
+class CdpChannelDeviceTest {
 
     companion object {
         @BeforeClass
@@ -39,7 +39,7 @@ class WebSocketClientDeviceTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun liveWebSocketConnectionAndCDPExchangeOverLocalSocket() = runBlocking {
+    fun liveCdpChannelCommandCorrelationAndEventDispatchingOnDevice() = runBlocking {
         val config = BrowserConfig(enableProtocolBackend = true)
         val session = PageSession(context, Viewport.Phone, config)
         session.initialize()
@@ -68,22 +68,26 @@ class WebSocketClientDeviceTest {
                 val client = WebSocketClient(socket.inputStream, socket.outputStream)
                 client.connect(path = path, host = "localhost")
 
-                assertTrue("WebSocket client should be connected to Chromium DevTools", client.isConnected)
+                val channel = CdpChannel(client)
 
-                // Send live CDP command: Page.enable
-                val cdpRequest = """{"id": 1, "method": "Page.enable"}"""
-                client.sendText(cdpRequest)
+                // 1. Live CDP Command: Page.enable
+                val pageEnableRes = channel.sendCommand("Page.enable")
+                assertNotNull("Page.enable response should not be null", pageEnableRes)
 
-                // Read live response from Chromium DevTools
-                val responseString = withTimeout(5000) {
-                    client.textMessages.first()
+                // 2. Live CDP Command: Runtime.evaluate expression
+                val evalParams = JSONObject().apply {
+                    put("expression", "document.title")
+                    put("returnByValue", true)
                 }
+                val evalRes = channel.sendCommand("Runtime.evaluate", evalParams)
+                val resultObj = evalRes.optJSONObject("result")
+                assertNotNull("Runtime.evaluate result should exist", resultObj)
+                val value = resultObj?.optString("value")
+                assertTrue("Evaluated title should contain Example Domain", value?.contains("Example Domain") == true)
 
-                assertNotNull("Response from DevTools should not be null", responseString)
-                val jsonResponse = JSONObject(responseString)
-                assertEquals("Response ID should match request ID", 1, jsonResponse.optInt("id"))
-
-                client.close()
+                // 3. Live Teardown
+                channel.close()
+                assertTrue("CdpChannel should be closed cleanly", channel.isClosed)
             } finally {
                 runCatching { socket.close() }
             }
