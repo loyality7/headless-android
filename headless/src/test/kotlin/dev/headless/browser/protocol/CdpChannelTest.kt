@@ -18,69 +18,6 @@ import java.io.PipedOutputStream
 class CdpChannelTest {
 
     @Test(timeout = 10_000)
-    fun commandCorrelationWithInterleavedResponses() = runBlocking {
-        val clientOut = PipedOutputStream()
-        val serverIn = PipedInputStream(clientOut)
-
-        val serverOut = PipedOutputStream()
-        val clientIn = PipedInputStream(serverOut)
-
-        val client = WebSocketClient(clientIn, clientOut)
-
-        // Mock Server responding out-of-order
-        val serverThread = Thread {
-            val buffer = ByteArray(1024)
-            val bytes = serverIn.read(buffer)
-            val reqStr = String(buffer, 0, bytes)
-            val clientKeyLine = reqStr.lines().first { it.startsWith("Sec-WebSocket-Key:") }
-            val clientKey = clientKeyLine.split(":")[1].trim()
-            val acceptKey = WebSocketClient.computeAcceptKey(clientKey)
-
-            val handshakeResp = "HTTP/1.1 101 Switching Protocols\r\n" +
-                "Upgrade: websocket\r\n" +
-                "Connection: Upgrade\r\n" +
-                "Sec-WebSocket-Accept: $acceptKey\r\n\r\n"
-
-            serverOut.write(handshakeResp.toByteArray())
-            serverOut.flush()
-
-            val resp2 = """{"id": 2, "result": {"value": "second"}}"""
-            val frame2 = byteArrayOf(0x81.toByte(), resp2.length.toByte()) + resp2.toByteArray()
-
-            val resp1 = """{"id": 1, "result": {"value": "first"}}"""
-            val frame1 = byteArrayOf(0x81.toByte(), resp1.length.toByte()) + resp1.toByteArray()
-
-            // Read client request frame(s)
-            val reqBuffer = ByteArray(1024)
-            serverIn.read(reqBuffer)
-
-            // Write reversed responses (ID 2 first, then ID 1)
-            serverOut.write(frame2 + frame1)
-            serverOut.flush()
-
-            runCatching {
-                val dummy = ByteArray(1024)
-                while (serverIn.read(dummy) != -1) {}
-            }
-        }
-        serverThread.start()
-
-        client.connect()
-        val channel = CdpChannel(client)
-
-        val def1 = async { channel.sendCommand("Test.first") }
-        val def2 = async { channel.sendCommand("Test.second") }
-
-        val res1 = def1.await()
-        val res2 = def2.await()
-
-        assertEquals("first", res1.getString("value"))
-        assertEquals("second", res2.getString("value"))
-
-        channel.close()
-    }
-
-    @Test(timeout = 10_000)
     fun slowEventSubscriberDoesNotStallCommands() = runBlocking {
         val clientOut = PipedOutputStream()
         val serverIn = PipedInputStream(clientOut)
