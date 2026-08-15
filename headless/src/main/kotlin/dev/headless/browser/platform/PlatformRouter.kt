@@ -74,6 +74,16 @@ internal class PlatformRouter {
         requestHooks.add(hook)
     }
 
+    /**
+     * Binds this router's rules to the process-global ServiceWorker controller on supported devices.
+     *
+     * WARNING: ServiceWorker interception on Android is process-global across all WebViews.
+     */
+    fun enableServiceWorkerInterception(): Boolean {
+        val swEngine = PlatformServiceWorkerEngine(this)
+        return swEngine.setupServiceWorkerInterception()
+    }
+
     fun interceptRequest(request: WebResourceRequest?): WebResourceResponse? {
         if (request == null) return null
         val urlStr = request.url.toString()
