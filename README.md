@@ -1,34 +1,20 @@
-<div align="center">
-
 # Headless Android SDK
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-purple.svg)](https://kotlinlang.org)
-[![Android](https://img.shields.io/badge/MinSDK-26%2B%20(Android%208.0%2B)-green.svg)](https://developer.android.com)
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)]()
+A browser automation library for Android. Drive live Chromium pages programmatically inside Android applications without external servers, Node.js runtimes, USB cables, or visible UI.
 
-**A production-grade, Playwright-shaped browser automation engine built natively for Android.**  
-*Drive live Chromium pages programmatically inside ordinary Android apps — no external server, no Node.js runtime, no USB cable, and zero visible UI.*
+## Architecture
 
-</div>
-
----
-
-## 💡 Overview
-
-Desktop browser automation frameworks like Playwright, Puppeteer, and Selenium cannot run natively on Android devices. Hosted browser services introduce latency and privacy concerns, while Android's `chrome://inspect` requires a physical desktop connection over USB.
-
-**Headless Android** solves this by turning system `android.webkit.WebView` — which shares the exact Chromium rendering core — into an in-process, headless automation host.
+Headless Android hosts an in-process, offscreen `android.webkit.WebView` instance sharing the system Chromium engine.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Your Android Application                           │
+│                          Host Android Application                           │
 │                                                                             │
-│  ┌──────────────────────┐   Suspendable API    ┌─────────────────────────┐  │
-│  │   Host Controller    │ ───────────────────> │   Headless Android SDK  │  │
+│  ┌──────────────────────┐   Coroutine API      ┌─────────────────────────┐  │
+│  │   Application Logic  │ ───────────────────> │   Headless Android SDK  │  │
 │  └──────────────────────┘                      └──────────┬──────────────┘  │
 │                                                           │                 │
-│                                                 Direct In-Process IPC       │
+│                                                 In-Process Interaction      │
 │                                                           │                 │
 │                                                           ▼                 │
 │                                                ┌─────────────────────────┐  │
@@ -38,32 +24,23 @@ Desktop browser automation frameworks like Playwright, Puppeteer, and Selenium c
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+## Features
 
-## ✨ Key Features
+- **Offscreen Execution**: Runs WebViews offscreen (`AttachedToHost` or `Detached`) with zero visible UI artifacts.
+- **Playwright-like API**: Coroutine-based APIs for navigation (`goto`), DOM reading (`querySelector`, `text`, `content`), script evaluation (`evaluate`), and form input (`fillTime`, `press`).
+- **Automatic Renderer Recovery**: Uses `WebViewRenderProcessClient` to detect unresponsive renderers and trigger automatic recovery.
+- **Zero-Telemetry Local Metrics**: In-memory `SessionMetrics` diagnostic tracking (navigations, JS execution time, memory pressure events, crashes) with zero external data transmission.
+- **SSRF & Security Guards**: Enforces `SsrfGuard` URL validation and strict opt-in gating for DevTools debugging.
 
-- **🚀 Offscreen Execution Engine**: Run full Chromium sessions cleanly offscreen (`AttachedToHost` or `Detached`) without window overlays or visual UI artifacts.
-- **⚡ Playwright-Shaped Suspend API**: Intuitive Kotlin coroutine APIs for page navigation (`goto`), DOM extraction (`querySelector`, `text`, `content`), dynamic script evaluation (`evaluate`), and form automation (`fillTime`, `press`).
-- **🛡️ Auto Renderer Recovery**: Monitors renderer health via `WebViewRenderProcessClient`. Automatically terminates and recovers hung or unresponsive renderers without crashing the host app.
-- **📊 Zero-Telemetry Local Metrics**: In-memory diagnostics (`SessionMetrics`) track session duration, navigation counts, JS execution time, memory pressure events, and renderer crashes without transmitting external telemetry.
-- **🔒 In-App Security & Guardrails**: Built-in SSRF protection (`SsrfGuard`) and strict opt-in gating for Chrome DevTools debugging capabilities.
-- **📦 Ultra Lightweight**: Zero heavy native binaries. Keeps artifact size under ~1 MB by leveraging system Chromium dependencies.
+## Security Notice
 
----
+Enabling the protocol backend (`enableProtocolBackend = true`) calls `android.webkit.WebView.setWebContentsDebuggingEnabled(true)`.
 
-## ⚠️ Security Notice & Debugging Opt-In
+On Android, web contents debugging is a process-wide setting that exposes all WebViews in the application to Chrome DevTools over USB (`chrome://inspect`). Keep `enableProtocolBackend = false` in production builds unless remote inspection is explicitly required.
 
-> [!WARNING]
-> Enabling protocol backend debugging (`enableProtocolBackend = true`) invokes `android.webkit.WebView.setWebContentsDebuggingEnabled(true)`.
-> 
-> - **Process-Wide Impact**: On Android, enabling web contents debugging makes **all WebViews in the host application inspectable over USB** via `chrome://inspect`.
-> - **Production Safety**: Always keep `enableProtocolBackend = false` in production builds unless remote DevTools inspection is explicitly required by your application.
+## Installation
 
----
-
-## 🛠️ Installation
-
-Add the SDK dependency to your module's `build.gradle.kts`:
+Add the dependency to `build.gradle.kts`:
 
 ```kotlin
 dependencies {
@@ -71,11 +48,9 @@ dependencies {
 }
 ```
 
----
+## API Usage Examples
 
-## 📖 Usage Examples
-
-### 1. Navigation & Content Extraction
+### Navigation and DOM Scraping
 
 ```kotlin
 import dev.headless.browser.BrowserConfig
@@ -94,7 +69,6 @@ suspend fun scrapeTopStory(context: Context) {
         val navigator = PlatformNavigator(session, config)
         val reader = PlatformReader(session, null, config)
 
-        // Navigate and wait for DOM load completion
         navigator.goto("https://news.ycombinator.com", WaitUntil.Load)
 
         val title = reader.title()
@@ -102,14 +76,13 @@ suspend fun scrapeTopStory(context: Context) {
 
         println("Page Title: $title")
         println("Top Headline: ${topStory?.text}")
-        println("Headline URL: ${topStory?.attributes?.get("href")}")
     } finally {
         session.close()
     }
 }
 ```
 
-### 2. Form Automation & Native Keyboard Input
+### Form Input Automation
 
 ```kotlin
 import dev.headless.browser.platform.PlatformInputEngine
@@ -117,99 +90,40 @@ import dev.headless.browser.platform.PlatformInputEngine
 suspend fun submitForm(session: PageSession, config: BrowserConfig) {
     val inputEngine = PlatformInputEngine(session, null, null, config)
 
-    // Type text character-by-character into form inputs
-    inputEngine.type("#username", "alice_dev")
-    inputEngine.type("#password", "SecureSecret123!")
-
-    // Fill HTML5 time input controls
+    inputEngine.type("#username", "alice")
+    inputEngine.type("#password", "Password123!")
     inputEngine.fillTime("#appointment-time", "14:30")
-
-    // Submit form natively via Enter key
     inputEngine.press("#password", "Enter")
 }
 ```
 
-### 3. Visual Screenshot Capture
+### Diagnostic Screenshot
 
 ```kotlin
 import dev.headless.browser.platform.PlatformScreenshotEngine
 import dev.headless.browser.platform.ScreenshotOptions
 
-suspend fun captureDiagnosticScreenshot(session: PageSession, config: BrowserConfig): ByteArray {
+suspend fun captureScreenshot(session: PageSession, config: BrowserConfig): ByteArray {
     val screenshotEngine = PlatformScreenshotEngine(session, config)
-    
-    // Capture PNG screenshot of current offscreen DOM state
     return screenshotEngine.screenshot(ScreenshotOptions())
 }
 ```
 
-### 4. Zero-Telemetry Local Metrics
+### Session Diagnostics
 
 ```kotlin
 val metrics = session.metrics()
-println("Session Duration: ${metrics.sessionDurationMs} ms")
-println("Total Navigations: ${metrics.totalNavigations}")
-println("JS Execution Count: ${metrics.totalJsEvaluations}")
-println("Renderer Crashes: ${metrics.rendererCrashes}")
+println("Duration: ${metrics.sessionDurationMs} ms")
+println("Navigations: ${metrics.totalNavigations}")
+println("JS Evaluations: ${metrics.totalJsEvaluations}")
 ```
 
----
+## System Constraints
 
-## 🏛️ Architecture & System Limits
+- **Threading Model**: Main-thread WebView calls are marshaled internally. Long-running sessions should be bound to a `ForegroundService`.
+- **Cookie Storage**: `CookieManager` is process-global. Call `storageEngine.clearAllData()` between distinct sessions to prevent cookie bleed.
+- **Requirements**: Minimum SDK 26 (Android 8.0+).
 
-| Aspect | Detail |
-| :--- | :--- |
-| **Threading Model** | Main-thread WebView operations are marshaled internally. Long-running sessions should be bound to a host `ForegroundService`. |
-| **Cookie Storage** | Standard Android `CookieManager` is process-global. To isolate user sessions, call `storageEngine.clearAllData()` between tasks. |
-| **Memory Management** | Automatic teardown hooks release offscreen views and unregister listeners upon `session.close()`. |
-| **Device Compatibility** | Compatible with Android 8.0+ (API 26+) and standard Play Store WebView updates. |
+## License
 
----
-
-## 📱 Interactive Example App (`:example`)
-
-The repository includes a multi-screen demo application demonstrating real-world automation capabilities:
-
-- **Scrape & Read**: Live search automation and step-by-step diagnostic screenshot gallery.
-- **Screenshot Studio**: High-resolution DOM rendering and image capture.
-- **Storage Inspector**: Process cookie extraction, injection, and storage clearing.
-- **Telemetry Dashboard**: Real-time visualization of local session diagnostic metrics.
-
-```bash
-# Build and run example application on connected hardware
-./gradlew :example:installDebug
-```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please ensure all code changes pass the automated test suite before submitting a Pull Request:
-
-```bash
-# Run unit tests and static lint analysis
-./gradlew check
-
-# Run on-device instrumentation tests on connected hardware
-./gradlew :headless:connectedDebugAndroidTest
-```
-
----
-
-## 📄 License
-
-```text
-Copyright 2026 Headless Android Authors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
+Licensed under the Apache License, Version 2.0.
