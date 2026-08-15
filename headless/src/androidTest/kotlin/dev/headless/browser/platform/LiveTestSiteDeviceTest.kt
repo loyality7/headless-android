@@ -57,8 +57,8 @@ class LiveTestSiteDeviceTest {
         // Step 3: Click login button
         inputEngine.click("button[type='submit']")
 
-        // Wait brief settlement for form POST redirect
-        kotlinx.coroutines.delay(1000)
+        // Wait for live server network POST response and settlement
+        kotlinx.coroutines.delay(3000)
 
         // Step 4: Verify logged in message via PlatformReader
         val flashMessage = reader.querySelector("#flash")?.text ?: ""

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="SessionMetrics &amp; Process Health Dashboard"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+            android:id="@+id/btnRefreshTelemetry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Run Diagnostics Session"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:id="@+id/tvTelemetryDashboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#212121"
+            android:textColor="#00FF66"
+            android:padding="16dp"
+            android:fontFamily="monospace"
+            android:text="Click above to run session telemetry diagnostic..."
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+</ScrollView>

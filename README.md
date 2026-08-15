@@ -1,50 +1,80 @@
-# headless-android
+# Headless Android
 
-A browser automation library for Android. Playwright-shaped control of a live
-Chromium page, running inside an ordinary app — no server, no USB cable, no
-visible UI.
+A lightweight, Playwright-shaped browser automation SDK for Android. Drive live Chromium pages programmatically inside your Android application — with no external server, no USB cable, and no visible UI.
 
-Nothing on Android can drive a web page programmatically. Playwright, Puppeteer
-and Selenium are desktop-only; hosted browsers are a network round trip away;
-Appium drives the app, not the page; `chrome://inspect` needs a desktop over USB.
+---
 
-Android WebView *is* Chromium — same renderer, same JavaScript engine, updated
-through the Play Store, on every device, costing zero bytes of app size. It
-exposes a control interface on a local abstract socket. This is the client for
-it.
+## ⚠️ Security Notice & Debugging Opt-In
 
-## Status
+> [!WARNING]
+> Enabling the protocol backend (`enableProtocolBackend = true`) invokes `android.webkit.WebView.setWebContentsDebuggingEnabled(true)`.
+> This is a **process-wide setting** on Android that enables Chrome DevTools inspectability over USB (`chrome://inspect`).
+> 
+> - **In Production**: Keep `enableProtocolBackend = false` unless protocol capabilities are required.
+> - **Never enable debugging without explicit host-app opt-in.**
 
-Pre-alpha. The device probe is written and unrun. Nothing is published.
+---
 
-## Running the probe
+## Features & Capabilities
 
-`probe/` asks a real device three questions before any library code is written:
-is the WebView control endpoint reachable in-process, which protocol methods
-this device's WebView actually implements, and does a session cycle leak.
+- **Invisible Offscreen Engine**: Hosts WebViews offscreen (`AttachedToHost` or `Detached`) without visible artifacts or window overlays.
+- **Playwright-like API**: Simple suspendable APIs for navigation (`goto`), script evaluation (`evaluate`), DOM queries (`querySelector`), screenshot capture (`captureScreenshot`), and form automation (`fillTime`, `press`).
+- **Resilient Lifecycle**: Automatic crash/OOM recovery (`handleRendererDeath`, `recover`), hang detection (`WebViewRenderProcessClient`), and zero-telemetry local metrics (`metrics()`).
+- **Zero Heavy Dependencies**: Powered by standard Android WebView, Kotlin coroutines, `androidx.webkit`, and `kotlinx.serialization`.
 
-Needs a connected device — an emulator cannot answer the OEM and SELinux
-questions the probe exists to settle.
+---
 
+## Quickstart & Integration Guide
+
+### 1. Dependency Setup
+Include the `:headless` artifact or module in your `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("dev.headless:headless:1.0.0")
+}
 ```
-./gradlew :probe:connectedAndroidTest
-adb logcat -s probe:I
+
+### 2. Basic Navigation & Scraping Example
+
+```kotlin
+import dev.headless.browser.BrowserConfig
+import dev.headless.browser.Viewport
+import dev.headless.browser.WaitUntil
+import dev.headless.browser.core.PageSession
+import dev.headless.browser.platform.PlatformNavigator
+import dev.headless.browser.platform.PlatformReader
+
+suspend fun scrapeExample(context: Context) {
+    val config = BrowserConfig(enableProtocolBackend = false)
+    val session = PageSession(context, Viewport.Phone, config)
+    session.initialize()
+
+    try {
+        val navigator = PlatformNavigator(session, config)
+        val reader = PlatformReader(session, null, config)
+
+        navigator.goto("https://news.ycombinator.com", WaitUntil.Load)
+        val title = reader.title()
+        val topStory = reader.querySelector(".titleline > a")
+        
+        println("Title: $title")
+        println("Top Story: ${topStory?.text}")
+    } finally {
+        session.close()
+    }
+}
 ```
 
-Every measurement is logged as `MEASUREMENT <key> = <value>`.
+---
 
-## Stack
+## Process Constraints & System Limits
 
-Kotlin, coroutines. `android.net.LocalSocket` for transport with a hand-written
-RFC 6455 client over its streams, `kotlinx.serialization` for the protocol,
-`androidx.webkit` for the platform backend. Three runtime dependencies, and the
-artifact stays around 1 MB.
+- **Process-Global Cookies**: Cookie storage is managed at the Android `CookieManager` process level. To isolate sessions, clear cookies explicitly between distinct tasks using `storageEngine.clearAllData()`.
+- **Threading Model**: Main-thread operations are safely marshaled internally. Long-running automation tasks should run inside a host-app `ForegroundService`.
 
-## Security
+---
 
-Enabling web contents debugging is process-wide and makes every WebView in the
-app inspectable over USB while it is on. Android documents this as a production
-security liability. It is an explicit opt-in here, never a default.
+## License
 
-Solving challenges, defeating bot detection, rotating proxies and spoofing
-fingerprints are out of scope permanently. This is an automation library.
+Licensed under the [Apache License, Version 2.0](LICENSE).

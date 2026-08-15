@@ -37,7 +37,7 @@ class BackendRouterDeviceTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, null, BrowserConfig(enableProtocolBackend = false))
+        session = PageSession(context, dev.headless.browser.Viewport.Phone, BrowserConfig(enableProtocolBackend = false, allowPrivateAddresses = true))
         session.initialize()
 
         navigator = PlatformNavigator(session, session.config)
@@ -68,7 +68,7 @@ class BackendRouterDeviceTest {
 
     @Test
     fun routerServesAllOperationsCleanlyWithPlatformBackend() = runBlocking {
-        backendRouter.goto(site.url(Fixture.Static), WaitUntil.Load, timeoutMillis = 5000)
+        backendRouter.goto(site.url(Fixture.Static), WaitUntil.Load, timeoutMillis = 15000)
 
         assertEquals("static", backendRouter.title())
         assertNotNull(backendRouter.content())

@@ -87,8 +87,9 @@ class PageSessionInstrumentationTest {
             hostedRef = hosted
 
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val originalClient = hosted.webView.webViewClient
                 hosted.webView.webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String) {
+                    override fun onPageFinished(view: WebView?, url: String?) {
                         session.scheduleTeardown()
                         // Check immediately inside callback stack frame:
                         if (hosted.destroyed) {
@@ -97,7 +98,7 @@ class PageSessionInstrumentationTest {
                         latch.countDown()
                     }
                 }
-                hosted.webView.loadUrl("data:text/html,<h1>test</h1>")
+                hosted.webView.loadDataWithBaseURL("https://example.com", "<html><body><h1>test</h1></body></html>", "text/html", "UTF-8", null)
             }
         }
 

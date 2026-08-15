@@ -145,6 +145,26 @@ public class PageSession(
                     return handleRendererDeath(didCrash)
                 }
             }
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_VIEW_RENDERER_CLIENT_BASIC_USAGE)) {
+                try {
+                    androidx.webkit.WebViewCompat.setWebViewRenderProcessClient(
+                        hosted.webView,
+                        object : androidx.webkit.WebViewRenderProcessClient() {
+                            override fun onRenderProcessUnresponsive(
+                                view: android.webkit.WebView,
+                                renderer: androidx.webkit.WebViewRenderProcess?,
+                            ) {
+                                renderer?.terminate()
+                            }
+
+                            override fun onRenderProcessResponsive(
+                                view: android.webkit.WebView,
+                                renderer: androidx.webkit.WebViewRenderProcess?,
+                            ) {}
+                        }
+                    )
+                } catch (_: Throwable) {}
+            }
             _hostedWebView = hosted
             activeSessionCount.incrementAndGet()
             hosted
@@ -222,6 +242,8 @@ public class PageSession(
             hosted
         }
     }
+
+
 
     /**
      * Guarantees that an operation runs within the active session state.
@@ -338,7 +360,8 @@ public class PageSession(
             throw e
         } catch (e: Throwable) {
             scheduleTeardown()
-            throw browserError(ErrorCode.DETACHED, "failed to execute session action on main thread", e)
+            val causeMsg = e.message ?: e.cause?.message ?: e.javaClass.simpleName
+            throw browserError(ErrorCode.DETACHED, "failed to execute session action on main thread: $causeMsg", e)
         }
     }
 

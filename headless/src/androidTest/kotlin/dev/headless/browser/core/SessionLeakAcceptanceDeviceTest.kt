@@ -33,9 +33,9 @@ class SessionLeakAcceptanceDeviceTest {
             session.close()
         }
 
-        // Force GC to clean unreferenced view/session memory
+        // Wait for main thread handler to finish asynchronous teardowns
+        kotlinx.coroutines.delay(300)
         System.gc()
-        Runtime.getRuntime().gc()
 
         // Verify active sessions return to 0 (all sessions destroyed)
         val finalSessions = PageSession.activeSessions

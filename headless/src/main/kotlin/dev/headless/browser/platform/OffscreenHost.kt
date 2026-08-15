@@ -64,9 +64,8 @@ public enum class HostMode {
  * marshals; this class does not, so that it never hides a thread hop inside
  * something that looks cheap.
  */
-internal class OffscreenHost(context: Context) {
+internal class OffscreenHost(private val context: Context) {
 
-    private val context = context.applicationContext
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
     /**
@@ -157,12 +156,11 @@ internal class OffscreenHost(context: Context) {
             ?: throw browserError(ErrorCode.DETACHED, "the host activity went away before the session started")
 
         val content = activity.findViewById<ViewGroup>(android.R.id.content)
-        val parent = content?.getChildAt(0) as? ViewGroup
             ?: throw browserError(ErrorCode.UNSUPPORTED, "the host activity has no content view to attach to")
 
         webView.layoutParams = FrameLayout.LayoutParams(width, height)
         webView.visibility = View.INVISIBLE
-        parent.addView(webView, 0)
+        content.addView(webView, 0)
     }
 
     /**

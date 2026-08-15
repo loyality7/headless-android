@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.headless.sample"
+    namespace = "dev.headless.example"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "dev.headless.sample"
+        applicationId = "dev.headless.example"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -48,4 +48,5 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

@@ -6,7 +6,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Fetch Engine Sample"
+        android:label="Headless Android Example"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
         <activity
@@ -17,6 +17,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ScrapeReadActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ScreenshotStudioActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="true" />
+        <activity
+            android:name=".StorageInspectorActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="true" />
+        <activity
+            android:name=".TelemetryDashboardActivity"
+            android:parentActivityName=".MainActivity"
+            android:exported="true" />
     </application>
 
 </manifest>

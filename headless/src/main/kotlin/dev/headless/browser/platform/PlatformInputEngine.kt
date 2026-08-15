@@ -74,12 +74,19 @@ public class PlatformInputEngine(
                 el.scrollIntoView({ block: 'center', inline: 'center' });
                 el.focus();
                 var textToType = $escapedText;
-                for (var i = 0; i < textToType.length; i++) {
-                    var ch = textToType.charAt(i);
-                    el.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
-                    el.value = (el.value || '') + ch;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
+                var specialTypes = ['time', 'date', 'datetime-local', 'month', 'week', 'color', 'number'];
+                if (specialTypes.indexOf(el.type) !== -1) {
+                    el.value = textToType;
+                    el.setAttribute('value', textToType);
+                } else {
+                    el.value = '';
+                    for (var i = 0; i < textToType.length; i++) {
+                        var ch = textToType.charAt(i);
+                        el.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
+                        el.value = el.value + ch;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
+                    }
                 }
                 el.dispatchEvent(new Event('change', { bubbles: true }));
                 return true;
@@ -107,9 +114,17 @@ public class PlatformInputEngine(
                 if (!el) return false;
                 el.focus();
                 var k = $escapedKey;
-                el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
-                el.dispatchEvent(new KeyboardEvent('keypress', { key: k, bubbles: true }));
-                el.dispatchEvent(new KeyboardEvent('keyup', { key: k, bubbles: true }));
+                var keyCode = (k === 'Enter') ? 13 : 0;
+                el.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: k, keyCode: keyCode, which: keyCode, bubbles: true }));
+                el.dispatchEvent(new KeyboardEvent('keypress', { key: k, code: k, keyCode: keyCode, which: keyCode, bubbles: true }));
+                if (k === 'Enter' && el.form) {
+                    if (typeof el.form.requestSubmit === 'function') {
+                        el.form.requestSubmit();
+                    } else {
+                        el.form.submit();
+                    }
+                }
+                el.dispatchEvent(new KeyboardEvent('keyup', { key: k, code: k, keyCode: keyCode, which: keyCode, bubbles: true }));
                 return true;
             })();
         """.trimIndent()
@@ -180,9 +195,48 @@ public class PlatformInputEngine(
                 var el = document.querySelector($escapedSel);
                 if (!el) return false;
                 el.scrollIntoView({ block: 'center', inline: 'center' });
-                el.value = $escapedVal;
+                var val = $escapedVal;
+                el.value = val;
+                if (el.options) {
+                    for (var i = 0; i < el.options.length; i++) {
+                        if (el.options[i].value === val || el.options[i].text === val) {
+                            el.selectedIndex = i;
+                            el.options[i].selected = true;
+                            break;
+                        }
+                    }
+                }
                 el.dispatchEvent(new Event('change', { bubbles: true }));
                 el.dispatchEvent(new Event('input', { bubbles: true }));
+                return true;
+            })();
+        """.trimIndent()
+
+        scriptEngine.evaluate(script)
+    }
+
+    /**
+     * Sets the time value (HH:MM format) on a time input element matching [selector].
+     */
+    public suspend fun fillTime(
+        selector: String,
+        time: String,
+        timeoutMillis: Long = 0,
+    ): Unit = session.runInState(SessionState.Operating) {
+        reader.waitForSelector(selector, timeoutMillis)
+
+        val escapedSel = JSONObject.quote(selector)
+        val escapedTime = JSONObject.quote(time)
+        val script = """
+            (function() {
+                var el = document.querySelector($escapedSel);
+                if (!el) return false;
+                el.scrollIntoView({ block: 'center', inline: 'center' });
+                el.focus();
+                el.value = $escapedTime;
+                el.setAttribute('value', $escapedTime);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
                 return true;
             })();
         """.trimIndent()
