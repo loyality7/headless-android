@@ -133,4 +133,87 @@ class LiveRealSitesDeviceTest {
             session.close()
         }
     }
+
+    @Test
+    fun testLiveHttpBinJsonFetchAndExtractionOnDevice() = runBlocking {
+        val config = BrowserConfig(enableProtocolBackend = true)
+        val session = PageSession(context, Viewport.Phone, config)
+        session.initialize()
+
+        val navigator = PlatformNavigator(session, config)
+        val scriptEngine = PlatformScriptEngine(session, config)
+        val reader = PlatformReader(session, scriptEngine, config)
+
+        try {
+            navigator.goto("https://httpbin.org/get", WaitUntil.Load)
+            val text = reader.text()
+            assertTrue("httpbin response should contain headers", text.contains("headers"))
+
+            val userAgent = scriptEngine.evaluate("navigator.userAgent") as String
+            assertTrue("User agent should be non-blank", userAgent.isNotBlank())
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
+    fun testLiveSsrfBlockOnDevice() = runBlocking {
+        val config = BrowserConfig(enableProtocolBackend = false)
+        val session = PageSession(context, Viewport.Phone, config)
+        session.initialize()
+        val navigator = PlatformNavigator(session, config)
+
+        try {
+            navigator.goto("http://127.0.0.1", WaitUntil.Load)
+            org.junit.Assert.fail("Should have blocked SSRF target")
+        } catch (ex: BrowserException) {
+            assertTrue("Exception code should be SSRF_BLOCKED or NAVIGATION_FAILED", ex.code == ErrorCode.SSRF_BLOCKED || ex.code == ErrorCode.NAVIGATION_FAILED)
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
+    fun testLiveRendererRecoveryOnDevice() = runBlocking {
+        val config = BrowserConfig(enableProtocolBackend = false)
+        val session = PageSession(context, Viewport.Phone, config)
+        session.initialize()
+
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+            session.handleRendererDeath(didCrash = true)
+        }
+        assertTrue("Session should report renderer dead", session.isRendererDead())
+
+        val recoveredHosted = session.recover()
+        assertNotNull("Recovered HostedWebView must not be null", recoveredHosted)
+        org.junit.Assert.assertFalse("Recovered session must not report renderer dead", session.isRendererDead())
+
+        val navigator = PlatformNavigator(session, config)
+        val reader = PlatformReader(session, dev.headless.browser.platform.PlatformScriptEngine(session, config), config)
+
+        try {
+            navigator.goto("https://example.com", WaitUntil.Load)
+            val title = reader.title()
+            assertTrue("Recovered session should render page", title.contains("Example Domain"))
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
+    fun testLiveJsTimeoutCappingOnDevice() = runBlocking {
+        val config = BrowserConfig(timeouts = Timeouts(scriptMillis = 1500L))
+        val session = PageSession(context, Viewport.Phone, config)
+        session.initialize()
+        val scriptEngine = PlatformScriptEngine(session, config)
+
+        try {
+            scriptEngine.evaluate("while(true) {}")
+            org.junit.Assert.fail("Should have timed out infinite JS loop")
+        } catch (ex: BrowserException) {
+            assertEquals(ErrorCode.TIMEOUT, ex.code)
+        } finally {
+            session.close()
+        }
+    }
 }

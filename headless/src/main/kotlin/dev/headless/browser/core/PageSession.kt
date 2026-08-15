@@ -49,7 +49,7 @@ internal class PageSession(
     context: Context,
     val viewport: Viewport?,
     val config: BrowserConfig,
-    parentJob: Job? = null,
+    private val parentJob: Job? = null,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val host = OffscreenHost(context)
@@ -62,14 +62,14 @@ internal class PageSession(
      * Coroutine scope owned by this session.
      * Cancelling parentJob or calling [close] cancels this scope and triggers teardown.
      */
-    val sessionJob: Job = SupervisorJob(parentJob).apply {
+    var sessionJob: Job = SupervisorJob(parentJob).apply {
         invokeOnCompletion { cause ->
             if (cause != null && !isClosed.get()) {
                 scheduleTeardown()
             }
         }
     }
-    val scope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate + sessionJob + CoroutineName("PageSession"))
+    var scope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate + sessionJob + CoroutineName("PageSession"))
 
     private var _hostedWebView: HostedWebView? = null
 
@@ -177,6 +177,14 @@ internal class PageSession(
                 }
             }
             _hostedWebView = hosted
+            sessionJob = SupervisorJob(parentJob).apply {
+                invokeOnCompletion { cause ->
+                    if (cause != null && !isClosed.get()) {
+                        scheduleTeardown()
+                    }
+                }
+            }
+            scope = CoroutineScope(Dispatchers.Main.immediate + sessionJob + CoroutineName("PageSession"))
             isRendererDead.set(false)
             isClosed.set(false)
             stateRef.set(SessionState.Initialized)
