@@ -23,3 +23,6 @@ captures/
 # OS
 Thumbs.db
 .DS_Store
+
+# Temporary Test Outputs
+example_screenshot.png
