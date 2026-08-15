@@ -106,6 +106,7 @@ internal class PageSession(
             }
             val hosted = host.create(viewport)
             _hostedWebView = hosted
+            activeSessionCount.incrementAndGet()
             hosted
         }
     }
@@ -180,12 +181,15 @@ internal class PageSession(
     /**
      * Synchronously/Suspendably closes the session and tears down resources.
      * Safe to call multiple times (idempotent).
+     * Teardown itself is non-cancellable.
      */
     suspend fun close() {
         if (isClosed.compareAndSet(false, true)) {
             stateRef.set(SessionState.Closed)
             sessionJob.cancel()
-            runOnMain { performTeardown() }
+            withContext(kotlinx.coroutines.NonCancellable) {
+                runOnMain { performTeardown() }
+            }
         }
     }
 
@@ -193,6 +197,7 @@ internal class PageSession(
         val hosted = _hostedWebView
         _hostedWebView = null
         if (hosted != null) {
+            activeSessionCount.decrementAndGet()
             host.destroy(hosted)
         }
     }
@@ -216,5 +221,15 @@ internal class PageSession(
             scheduleTeardown()
             throw browserError(ErrorCode.DETACHED, "failed to execute session action on main thread", e)
         }
+    }
+
+    companion object {
+        private val activeSessionCount = java.util.concurrent.atomic.AtomicInteger(0)
+
+        /**
+         * Returns the current number of active initialized sessions.
+         */
+        val activeSessions: Int
+            get() = activeSessionCount.get()
     }
 }
