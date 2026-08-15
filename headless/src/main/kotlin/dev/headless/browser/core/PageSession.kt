@@ -268,6 +268,7 @@ internal class PageSession(
         private val activeSessionCount = java.util.concurrent.atomic.AtomicInteger(0)
         private val rendererCrashCount = java.util.concurrent.atomic.AtomicInteger(0)
         private val rendererOomCount = java.util.concurrent.atomic.AtomicInteger(0)
+        private val memoryLimitRefusalCount = java.util.concurrent.atomic.AtomicInteger(0)
 
         /**
          * Returns the current number of active initialized sessions.
@@ -286,5 +287,11 @@ internal class PageSession(
          */
         val totalRendererOoms: Int
             get() = rendererOomCount.get()
+
+        /**
+         * Total number of operations refused due to critical memory pressure.
+         */
+        val totalMemoryLimitRefusals: Int
+            get() = memoryLimitRefusalCount.get()
     }
 }
