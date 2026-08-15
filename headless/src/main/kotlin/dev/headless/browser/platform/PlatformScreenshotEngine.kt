@@ -45,16 +45,12 @@ internal class PlatformScreenshotEngine(
     suspend fun screenshot(
         options: ScreenshotOptions = ScreenshotOptions(),
     ): ByteArray = session.runInState(SessionState.Operating) {
-        if (session.viewport == null) {
-            throw browserError(
-                ErrorCode.UNSUPPORTED,
-                "Screenshot requires a viewport-sized session; current view is detached 1x1",
-            )
-        }
+        dev.headless.browser.core.CapabilityGuard.requireScreenshots(session.capabilities())
 
+        val viewport = session.viewport ?: throw browserError(ErrorCode.UNSUPPORTED, "Screenshot requires viewport")
         val hosted = session.hostedWebView
-        val width = hosted.webView.width.let { if (it <= 0) session.viewport.width else it }
-        val height = hosted.webView.height.let { if (it <= 0) session.viewport.height else it }
+        val width = hosted.webView.width.let { if (it <= 0) viewport.width else it }
+        val height = hosted.webView.height.let { if (it <= 0) viewport.height else it }
 
         if (width <= 1 || height <= 1) {
             throw browserError(

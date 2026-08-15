@@ -64,12 +64,7 @@ internal class PlatformScriptEngine(
      */
     @android.annotation.SuppressLint("RequiresFeature")
     suspend fun addInitScript(script: String) = session.runInState(SessionState.Operating) {
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            throw browserError(
-                ErrorCode.UNSUPPORTED,
-                "addInitScript is not supported on this device's WebView package",
-            )
-        }
+        dev.headless.browser.core.CapabilityGuard.requireDocumentStartScript(session.capabilities())
 
         val hosted = session.hostedWebView
         withContext(Dispatchers.Main) {
