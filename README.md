@@ -61,7 +61,7 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.headless:headless:1.0.0")
+    implementation("dev.headless:headless-android:1.0.0")
 }
 ```
 

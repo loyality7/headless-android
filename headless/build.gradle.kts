@@ -43,7 +43,7 @@ publishing {
     publications {
         register<MavenPublication>("release") {
             groupId = "dev.headless"
-            artifactId = "headless"
+            artifactId = "headless-android"
             version = "1.0.0"
 
             afterEvaluate {
