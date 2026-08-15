@@ -166,7 +166,10 @@ internal class PlatformNavigator(
 
             val count = redirectCount.incrementAndGet()
             if (count > MAX_REDIRECTS) {
-                fatalError = RuntimeException("Too many redirects: exceeded maximum cap of $MAX_REDIRECTS")
+                fatalError = dev.headless.browser.browserError(
+                    ErrorCode.NAVIGATION_FAILED,
+                    "Too many redirects: exceeded maximum cap of $MAX_REDIRECTS"
+                )
                 domReadyDeferred.complete(Unit)
                 loadDeferred.complete(Unit)
                 return true
@@ -219,7 +222,7 @@ internal class PlatformNavigator(
         }
     }
 
-    private companion object {
+    internal companion object {
         const val MAX_REDIRECTS = 20
     }
 }
