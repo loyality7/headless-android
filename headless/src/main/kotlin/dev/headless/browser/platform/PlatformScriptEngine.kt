@@ -45,6 +45,7 @@ internal class PlatformScriptEngine(
             })
         }
 
+        val startTime = System.currentTimeMillis()
         val rawResult = try {
             withTimeout(effectiveTimeout) {
                 deferred.await()
@@ -52,6 +53,8 @@ internal class PlatformScriptEngine(
         } catch (e: TimeoutCancellationException) {
             throw browserError(ErrorCode.TIMEOUT, "script evaluation timed out after ${effectiveTimeout}ms", e)
         }
+        val elapsed = System.currentTimeMillis() - startTime
+        session.recordJsEvaluation(elapsed)
 
         truncateIfNeeded(rawResult)
     }

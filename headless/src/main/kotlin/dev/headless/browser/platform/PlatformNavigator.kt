@@ -68,6 +68,7 @@ internal class PlatformNavigator(
                 client.awaitSignal()
                 true
             }
+            session.recordNavigation()
         } catch (e: TimeoutCancellationException) {
             // Timeout returns what exists, flagged as not settled (settled = false),
             // rather than throwing away partial content!

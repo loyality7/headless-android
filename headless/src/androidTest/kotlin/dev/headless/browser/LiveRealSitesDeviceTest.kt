@@ -216,4 +216,27 @@ class LiveRealSitesDeviceTest {
             session.close()
         }
     }
+
+    @Test
+    fun testLiveSessionMetricsTrackingOnDevice() = runBlocking {
+        val config = BrowserConfig(enableProtocolBackend = false)
+        val session = PageSession(context, Viewport.Phone, config)
+        session.initialize()
+
+        val navigator = PlatformNavigator(session, config)
+        val scriptEngine = PlatformScriptEngine(session, config)
+
+        try {
+            navigator.goto("https://example.com", WaitUntil.Load)
+            scriptEngine.evaluate("1 + 1")
+            scriptEngine.evaluate("'hello' + ' world'")
+
+            val metrics = session.metrics()
+            assertTrue("Session duration should be > 0", metrics.sessionDurationMs >= 0)
+            assertEquals("Navigations count should be 1", 1, metrics.totalNavigations)
+            assertEquals("JS evaluations count should be 2", 2, metrics.totalJsEvaluations)
+        } finally {
+            session.close()
+        }
+    }
 }

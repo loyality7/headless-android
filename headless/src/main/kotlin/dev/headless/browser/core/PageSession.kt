@@ -6,6 +6,7 @@ import android.os.Looper
 import dev.headless.browser.BrowserConfig
 import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
+import dev.headless.browser.SessionMetrics
 import dev.headless.browser.Viewport
 import dev.headless.browser.browserError
 import dev.headless.browser.platform.HostedWebView
@@ -57,6 +58,35 @@ internal class PageSession(
     private val isClosed = AtomicBoolean(false)
     private val isRendererDead = AtomicBoolean(false)
     private val capabilityProbe = dev.headless.browser.protocol.ProtocolCapabilityProbe(context, config)
+
+    private val startTimeMs = System.currentTimeMillis()
+    private val navigationCount = java.util.concurrent.atomic.AtomicInteger(0)
+    private val jsEvalCount = java.util.concurrent.atomic.AtomicInteger(0)
+    private val jsExecutionTimeMs = java.util.concurrent.atomic.AtomicLong(0)
+    private val blockedBytesCount = java.util.concurrent.atomic.AtomicLong(0)
+
+    fun recordNavigation() { navigationCount.incrementAndGet() }
+    fun recordJsEvaluation(durationMs: Long) {
+        jsEvalCount.incrementAndGet()
+        jsExecutionTimeMs.addAndGet(durationMs)
+    }
+    fun recordBlockedBytes(bytes: Long) { blockedBytesCount.addAndGet(bytes) }
+
+    /**
+     * Returns snapshot of locally recorded session metrics.
+     */
+    fun metrics(): SessionMetrics {
+        val duration = System.currentTimeMillis() - startTimeMs
+        return SessionMetrics(
+            sessionDurationMs = duration,
+            totalNavigations = navigationCount.get(),
+            totalJsEvaluations = jsEvalCount.get(),
+            totalJsExecutionTimeMs = jsExecutionTimeMs.get(),
+            blockedBytes = blockedBytesCount.get(),
+            memoryPressureEvents = memoryLimitRefusalCount.get(),
+            rendererCrashes = rendererCrashCount.get() + rendererOomCount.get(),
+        )
+    }
 
     /**
      * Coroutine scope owned by this session.
