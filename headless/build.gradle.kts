@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    `maven-publish`
 }
 
 android {
@@ -14,6 +15,13 @@ android {
         consumerProguardFiles("consumer-rules.pro")
     }
 
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -22,16 +30,50 @@ android {
     lint {
         warningsAsErrors = true
         abortOnError = true
-        // Dependency freshness is a review decision, not a build gate: an upstream
-        // release would otherwise turn CI red without a line of our code changing.
         disable += setOf("GradleDependency", "AndroidGradlePluginVersion")
     }
 }
 
 kotlin {
     jvmToolchain(17)
-    // Main sources only: every public declaration states its visibility and return type.
     explicitApi()
+}
+
+publishing {
+    publications {
+        register<MavenPublication>("release") {
+            groupId = "dev.headless"
+            artifactId = "headless"
+            version = "1.0.0"
+
+            afterEvaluate {
+                from(components["release"])
+            }
+
+            pom {
+                name.set("Headless Android")
+                description.set("Playwright-shaped browser automation SDK for Android")
+                url.set("https://github.com/loyality7/headless-android")
+                licenses {
+                    license {
+                        name.set("The Apache Software License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("loyality7")
+                        name.set("Sarath Babu")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:github.com/loyality7/headless-android.git")
+                    developerConnection.set("scm:git:ssh://github.com/loyality7/headless-android.git")
+                    url.set("https://github.com/loyality7/headless-android")
+                }
+            }
+        }
+    }
 }
 
 // Three runtime dependencies. Adding a fourth needs a written justification.
