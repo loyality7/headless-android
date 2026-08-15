@@ -31,9 +31,10 @@ class PlatformNavigatorTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, null, BrowserConfig())
+        val config = BrowserConfig(allowPrivateAddresses = true)
+        session = PageSession(context, null, config)
         session.initialize()
-        navigator = PlatformNavigator(session, BrowserConfig())
+        navigator = PlatformNavigator(session, config)
     }
 
     @After

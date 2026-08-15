@@ -191,6 +191,10 @@ internal class PageSession(
         if (isClosed.get() || stateRef.get() == SessionState.Closed) {
             throw browserError(ErrorCode.DETACHED, "session is closed")
         }
+        if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
+            memoryLimitRefusalCount.incrementAndGet()
+            throw browserError(ErrorCode.MEMORY_LIMIT, "Refused operation due to critical memory pressure")
+        }
     }
 
     private fun checkState(expected: SessionState, next: SessionState) {

@@ -32,12 +32,13 @@ class PlatformInputEngineTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, null, BrowserConfig())
+        val config = BrowserConfig(allowPrivateAddresses = true)
+        session = PageSession(context, null, config)
         session.initialize()
-        navigator = PlatformNavigator(session, BrowserConfig())
-        scriptEngine = PlatformScriptEngine(session, BrowserConfig())
-        reader = PlatformReader(session, scriptEngine, BrowserConfig())
-        inputEngine = PlatformInputEngine(session, scriptEngine, reader, BrowserConfig())
+        navigator = PlatformNavigator(session, config)
+        scriptEngine = PlatformScriptEngine(session, config)
+        reader = PlatformReader(session, scriptEngine, config)
+        inputEngine = PlatformInputEngine(session, scriptEngine, reader, config)
     }
 
     @After

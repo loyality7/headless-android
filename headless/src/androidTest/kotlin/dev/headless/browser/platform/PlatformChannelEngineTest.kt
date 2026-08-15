@@ -32,11 +32,12 @@ class PlatformChannelEngineTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, null, BrowserConfig())
+        val config = BrowserConfig(allowPrivateAddresses = true)
+        session = PageSession(context, null, config)
         session.initialize()
-        navigator = PlatformNavigator(session, BrowserConfig())
-        scriptEngine = PlatformScriptEngine(session, BrowserConfig())
-        channelEngine = PlatformChannelEngine(session, BrowserConfig())
+        navigator = PlatformNavigator(session, config)
+        scriptEngine = PlatformScriptEngine(session, config)
+        channelEngine = PlatformChannelEngine(session, config)
     }
 
     @After

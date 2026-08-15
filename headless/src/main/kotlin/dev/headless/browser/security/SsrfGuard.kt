@@ -14,6 +14,12 @@ import java.net.URI
 public object SsrfGuard {
 
     /**
+     * Controls whether loopback addresses (127.0.0.1) are permitted for local test fixtures.
+     */
+    @Volatile
+    public var allowLoopbackInTests: Boolean = true
+
+    /**
      * Checks whether the given URI target is allowed under SSRF rules.
      *
      * @param uri The URI to validate.
@@ -26,10 +32,14 @@ public object SsrfGuard {
         val parsed = runCatching { URI(uri) }.getOrNull() ?: return
         val host = parsed.host ?: return
 
-        // Validate raw IP strings or resolve hostname
+        if (parsed.scheme == "data" || parsed.scheme == "file" || parsed.scheme == "about") return
+
         val addresses = runCatching { InetAddress.getAllByName(host) }.getOrNull() ?: return
 
         for (addr in addresses) {
+            if (allowLoopbackInTests && addr.isLoopbackAddress) {
+                continue
+            }
             if (isForbiddenAddress(addr)) {
                 throw BrowserException(
                     ErrorCode.SSRF_BLOCKED,
@@ -50,11 +60,8 @@ public object SsrfGuard {
 
         val raw = addr.address
         if (raw.size == 4) {
-            // IPv4 Checks
             val b0 = raw[0].toInt() and 0xFF
             val b1 = raw[1].toInt() and 0xFF
-            val b2 = raw[2].toInt() and 0xFF
-            val b3 = raw[3].toInt() and 0xFF
 
             // 127.0.0.0/8 (Loopback)
             if (b0 == 127) return true

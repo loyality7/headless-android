@@ -34,18 +34,19 @@ class PlatformScreenshotEngineTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
+        val config = BrowserConfig(allowPrivateAddresses = true)
 
         // 1x1 session
-        session1x1 = PageSession(context, null, BrowserConfig())
+        session1x1 = PageSession(context, null, config)
         session1x1.initialize()
-        screenshotEngine1x1 = PlatformScreenshotEngine(session1x1, BrowserConfig())
+        screenshotEngine1x1 = PlatformScreenshotEngine(session1x1, config)
 
         // Viewport-sized session with standard platform phone viewport (1080x1920)
         val viewport = Viewport.Phone
-        sessionViewport = PageSession(context, viewport, BrowserConfig())
+        sessionViewport = PageSession(context, viewport, config)
         sessionViewport.initialize()
-        screenshotEngineViewport = PlatformScreenshotEngine(sessionViewport, BrowserConfig())
-        navigatorViewport = PlatformNavigator(sessionViewport, BrowserConfig())
+        screenshotEngineViewport = PlatformScreenshotEngine(sessionViewport, config)
+        navigatorViewport = PlatformNavigator(sessionViewport, config)
     }
 
     @After

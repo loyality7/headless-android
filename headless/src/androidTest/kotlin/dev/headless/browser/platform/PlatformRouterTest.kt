@@ -31,12 +31,13 @@ class PlatformRouterTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, null, BrowserConfig())
+        val config = BrowserConfig(allowPrivateAddresses = true)
+        session = PageSession(context, null, config)
         session.initialize()
         router = PlatformRouter()
-        navigator = PlatformNavigator(session, BrowserConfig(), router)
-        scriptEngine = PlatformScriptEngine(session, BrowserConfig())
-        reader = PlatformReader(session, scriptEngine, BrowserConfig())
+        navigator = PlatformNavigator(session, config, router)
+        scriptEngine = PlatformScriptEngine(session, config)
+        reader = PlatformReader(session, scriptEngine, config)
     }
 
     @After

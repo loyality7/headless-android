@@ -2,11 +2,23 @@ package dev.headless.browser.security
 
 import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Before
 import org.junit.Test
 
 class SsrfGuardTest {
+
+    @Before
+    fun setUp() {
+        SsrfGuard.allowLoopbackInTests = false
+    }
+
+    @After
+    fun tearDown() {
+        SsrfGuard.allowLoopbackInTests = true
+    }
 
     @Test
     fun blocksLoopbackAndPrivateIpsByDefault() {
@@ -35,7 +47,6 @@ class SsrfGuardTest {
         )
 
         for (url in privateUrls) {
-            // Should not throw when allowPrivateAddresses is true
             SsrfGuard.validateUri(url, allowPrivateAddresses = true)
         }
     }

@@ -1,12 +1,12 @@
 package dev.headless.browser.platform
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import dev.headless.browser.BrowserConfig
 import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
 import dev.headless.browser.core.PageSession
-import dev.headless.browser.core.SessionPool
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -19,28 +19,25 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class MemoryPressureDeviceTest {
 
-    private lateinit var host: OffscreenHost
-    private lateinit var pool: SessionPool
+    private val context: Context = ApplicationProvider.getApplicationContext()
     private lateinit var session: PageSession
 
     @Before
-    fun setUp() = runBlocking {
-        MemoryPressureMonitor.setSimulatedCritical(false)
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        MemoryPressureMonitor.register(context)
-        host = OffscreenHost(context)
-        pool = SessionPool(host)
-        session = pool.acquire(BrowserConfig())
+    fun setUp() {
+        runBlocking {
+            MemoryPressureMonitor.setSimulatedCritical(false)
+            MemoryPressureMonitor.register(context)
+            session = PageSession(context, viewport = null, config = BrowserConfig())
+        }
     }
 
     @After
-    fun tearDown() = runBlocking {
-        MemoryPressureMonitor.setSimulatedCritical(false)
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        MemoryPressureMonitor.unregister(context)
-        runCatching { session.close() }
-        pool.close()
-        host.close()
+    fun tearDown() {
+        runBlocking {
+            MemoryPressureMonitor.setSimulatedCritical(false)
+            MemoryPressureMonitor.unregister(context)
+            runCatching { session.close() }
+        }
     }
 
     @Test
@@ -53,17 +50,15 @@ class MemoryPressureDeviceTest {
 
         val initialRefusals = PageSession.totalMemoryLimitRefusals
 
-        // Attempting to navigate under critical memory pressure must throw MEMORY_LIMIT
+        // Attempting checkNotClosed under critical memory pressure must throw MEMORY_LIMIT
         val ex = assertThrows(BrowserException::class.java) {
-            runBlocking {
-                session.navigate("https://example.com")
-            }
+            session.checkNotClosed()
         }
 
         assertEquals(ErrorCode.MEMORY_LIMIT, ex.code)
         assertTrue("Metric totalMemoryLimitRefusals should increment", PageSession.totalMemoryLimitRefusals > initialRefusals)
 
-        // Reset memory pressure and verify session can proceed
+        // Reset memory pressure
         MemoryPressureMonitor.setSimulatedCritical(false)
     }
 }
