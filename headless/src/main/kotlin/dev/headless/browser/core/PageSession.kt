@@ -106,15 +106,13 @@ internal class PageSession(
                 } catch (_: Throwable) {}
             }
             val hosted = host.create(viewport)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                hosted.webView.webViewClient = object : android.webkit.WebViewClient() {
-                    override fun onRenderProcessGone(
-                        view: android.webkit.WebView?,
-                        detail: android.webkit.RenderProcessGoneDetail?,
-                    ): Boolean {
-                        val didCrash = detail?.didCrash() ?: true
-                        return handleRendererDeath(didCrash)
-                    }
+            hosted.webView.webViewClient = object : android.webkit.WebViewClient() {
+                override fun onRenderProcessGone(
+                    view: android.webkit.WebView?,
+                    detail: android.webkit.RenderProcessGoneDetail?,
+                ): Boolean {
+                    val didCrash = detail?.didCrash() ?: true
+                    return handleRendererDeath(didCrash)
                 }
             }
             _hostedWebView = hosted

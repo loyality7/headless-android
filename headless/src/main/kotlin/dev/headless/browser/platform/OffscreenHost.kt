@@ -127,13 +127,11 @@ internal class OffscreenHost(context: Context) {
         webView.settings.loadWithOverviewMode = true
         webView.settings.allowFileAccess = false
         webView.settings.allowContentAccess = false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            webView.webViewClient = object : android.webkit.WebViewClient() {
-                override fun onRenderProcessGone(
-                    view: WebView?,
-                    detail: android.webkit.RenderProcessGoneDetail?,
-                ): Boolean = true
-            }
+        webView.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: android.webkit.RenderProcessGoneDetail?,
+            ): Boolean = true
         }
 
         val mode = availableMode()
