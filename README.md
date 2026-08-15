@@ -40,9 +40,26 @@ On Android, web contents debugging is a process-wide setting that exposes all We
 
 ## Installation
 
-Add the dependency to `build.gradle.kts`:
+### Local / Multi-Module Project
+
+Include the `:headless` module in your project:
 
 ```kotlin
+dependencies {
+    implementation(project(":headless"))
+}
+```
+
+### Maven Local / Published Artifact
+
+To use from `mavenLocal()` after running `./gradlew :headless:publishToMavenLocal`:
+
+```kotlin
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
 dependencies {
     implementation("dev.headless:headless:1.0.0")
 }
