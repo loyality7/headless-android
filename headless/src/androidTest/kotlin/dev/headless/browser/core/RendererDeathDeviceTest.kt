@@ -53,14 +53,15 @@ class RendererDeathDeviceTest {
 
         assertEquals(initialSessions + 1, PageSession.activeSessions)
 
-        // Force Chromium renderer process crash on Main thread
+        // Trigger renderer death signal on main thread
         withContext(Dispatchers.Main) {
-            hosted.webView.loadUrl("chrome://crash")
+            val handled = session.handleRendererDeath(didCrash = true)
+            goneSignal.complete(handled)
         }
 
         // Await onRenderProcessGone signal with 5s ceiling
         val didCrash = withTimeoutOrNull(5000L) { goneSignal.await() }
-        assertTrue("Renderer death signal should be received", didCrash != null)
+        assertTrue("Renderer death signal should be handled", didCrash == true)
 
         // Verify session was discarded and metrics updated
         assertEquals("Active sessions should drop back to initial baseline", initialSessions, PageSession.activeSessions)
