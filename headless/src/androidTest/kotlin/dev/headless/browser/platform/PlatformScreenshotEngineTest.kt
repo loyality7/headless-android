@@ -95,5 +95,9 @@ class PlatformScreenshotEngineTest {
 
         assertNotNull(livePngBytes)
         assertTrue("Live website screenshot PNG bytes should be non-empty", livePngBytes.size > 100)
+
+        val file = java.io.File(context.cacheDir, "example_screenshot.png")
+        file.writeBytes(livePngBytes)
+        assertTrue("Saved screenshot file should exist", file.exists() && file.length() > 0)
     }
 }
