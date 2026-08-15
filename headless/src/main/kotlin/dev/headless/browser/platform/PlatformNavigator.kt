@@ -80,6 +80,7 @@ internal class PlatformNavigator(
 
         // Check if there was a fatal navigation error
         client.fatalError?.let { cause ->
+            if (cause is BrowserException) throw cause
             throw browserError(
                 ErrorCode.NAVIGATION_FAILED,
                 "Navigation failed for $url: ${cause.message}",
@@ -95,11 +96,13 @@ internal class PlatformNavigator(
     }
 
     private fun checkUrlAllowed(url: String) {
-        if (config.allowPrivateAddresses) return
-        val uri = Uri.parse(url)
-        val host = uri.host ?: return
-        if (host == "localhost" || host == "127.0.0.1" || host == "::1" || host.startsWith("192.168.") || host.startsWith("10.")) {
-            // Note: Full SSRF resolution check will expand in security issue #48
+        try {
+            dev.headless.browser.security.SsrfGuard.validateUri(url, config.allowPrivateAddresses)
+        } catch (e: BrowserException) {
+            if (e.code == ErrorCode.SSRF_BLOCKED) {
+                PageSession.recordSsrfBlocked()
+            }
+            throw e
         }
     }
 
@@ -125,21 +128,6 @@ internal class PlatformNavigator(
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
             super.onPageStarted(view, url, favicon)
             url?.let { currentUrl = it }
-            // Inject DOMContentLoaded listener
-            view?.evaluateJavascript(
-                """
-                (function() {
-                    if (document.readyState === 'interactive' || document.readyState === 'complete') {
-                        console.log('__dom_ready');
-                    } else {
-                        document.addEventListener('DOMContentLoaded', function() {
-                            console.log('__dom_ready');
-                        });
-                    }
-                })();
-                """.trimIndent(),
-                null,
-            )
         }
 
         override fun onPageFinished(view: WebView?, url: String?) {
@@ -161,6 +149,21 @@ internal class PlatformNavigator(
         }
 
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            val targetUrl = request?.url?.toString() ?: ""
+            if (targetUrl.isNotEmpty()) {
+                try {
+                    dev.headless.browser.security.SsrfGuard.validateUri(targetUrl, config.allowPrivateAddresses)
+                } catch (e: BrowserException) {
+                    if (e.code == ErrorCode.SSRF_BLOCKED) {
+                        PageSession.recordSsrfBlocked()
+                        fatalError = e
+                        domReadyDeferred.complete(Unit)
+                        loadDeferred.complete(Unit)
+                        return true
+                    }
+                }
+            }
+
             val count = redirectCount.incrementAndGet()
             if (count > MAX_REDIRECTS) {
                 fatalError = RuntimeException("Too many redirects: exceeded maximum cap of $MAX_REDIRECTS")

@@ -276,6 +276,8 @@ internal class PageSession(
         val activeSessions: Int
             get() = activeSessionCount.get()
 
+        private val ssrfBlockedCount = java.util.concurrent.atomic.AtomicInteger(0)
+
         /**
          * Total number of renderer process crashes survived since process start.
          */
@@ -293,5 +295,18 @@ internal class PageSession(
          */
         val totalMemoryLimitRefusals: Int
             get() = memoryLimitRefusalCount.get()
+
+        /**
+         * Total number of navigations or redirects blocked by SSRF rules.
+         */
+        val totalSsrfBlocked: Int
+            get() = ssrfBlockedCount.get()
+
+        /**
+         * Records an SSRF blockage event.
+         */
+        fun recordSsrfBlocked() {
+            ssrfBlockedCount.incrementAndGet()
+        }
     }
 }
