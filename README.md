@@ -45,6 +45,7 @@ Add the dependency to `build.gradle.kts`:
 ```kotlin
 repositories {
     mavenCentral()
+    mavenLocal() // For local builds
 }
 
 dependencies {
