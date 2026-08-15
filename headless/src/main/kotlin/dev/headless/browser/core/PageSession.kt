@@ -90,6 +90,11 @@ internal class PageSession(
         return runCatchingOnMain {
             checkNotClosed()
             checkState(SessionState.Acquired, SessionState.Initialized)
+            if (config.enableProtocolBackend) {
+                try {
+                    android.webkit.WebView.setWebContentsDebuggingEnabled(true)
+                } catch (_: Throwable) {}
+            }
             val hosted = host.create(viewport)
             _hostedWebView = hosted
             hosted
