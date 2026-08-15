@@ -8,6 +8,7 @@ androidxTest = "1.6.1"
 androidxTestRunner = "1.6.2"
 androidxJunit = "1.2.1"
 junit = "4.13.2"
+json = "20231013"
 okhttp = "4.12.0"
 
 [libraries]
@@ -20,6 +21,7 @@ androidx-test-core = { module = "androidx.test:core-ktx", version.ref = "android
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 androidx-test-junit = { module = "androidx.test.ext:junit-ktx", version.ref = "androidxJunit" }
 junit = { module = "junit:junit", version.ref = "junit" }
+org-json = { module = "org.json:json", version.ref = "json" }
 
 # Test-only. The fixture site serves pages to tests so nothing resolves a public host.
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }

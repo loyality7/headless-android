@@ -42,6 +42,7 @@ dependencies {
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
     testImplementation(project(":fixtures"))
 
     androidTestImplementation(project(":fixtures"))
