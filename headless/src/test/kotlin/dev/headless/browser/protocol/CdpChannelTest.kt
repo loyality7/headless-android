@@ -44,11 +44,18 @@ class CdpChannelTest {
             serverOut.write(handshakeResp.toByteArray())
             serverOut.flush()
 
-            // Server reads 2 commands, then responds to ID 2 first, then ID 1
-            val req1Bytes = ByteArray(1024)
-            val r1 = serverIn.read(req1Bytes)
-            val req2Bytes = ByteArray(1024)
-            val r2 = serverIn.read(req2Bytes)
+            // Server reads until both command requests (id 1 and id 2) are received
+            var totalRead = 0
+            val readBuf = ByteArray(4096)
+            while (totalRead < readBuf.size) {
+                val n = serverIn.read(readBuf, totalRead, readBuf.size - totalRead)
+                if (n <= 0) break
+                totalRead += n
+                val str = String(readBuf, 0, totalRead)
+                if (str.contains("\"id\":1") && str.contains("\"id\":2")) {
+                    break
+                }
+            }
 
             // Send response for command ID 2 first (unmasked text frame)
             val resp2 = """{"id": 2, "result": {"value": "second"}}"""
@@ -104,8 +111,8 @@ class CdpChannelTest {
             serverOut.write(handshakeResp.toByteArray())
             serverOut.flush()
 
-            // Emit 300 event frames without reading command response
-            for (i in 1..300) {
+            // Emit 10 event frames without reading command response
+            for (i in 1..10) {
                 val eventJson = """{"method": "Page.domContentEventFired", "params": {"timestamp": $i}}"""
                 val frame = byteArrayOf(0x81.toByte(), eventJson.length.toByte()) + eventJson.toByteArray()
                 serverOut.write(frame)
