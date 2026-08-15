@@ -1,4 +1,0 @@
-probe run 2026-08-15 23:08
-device: 22041219PI, Android 14 (API 34), WebView 152.0.7977.30
-dev.headless.probe.LifecycleAndMemoryTest:INSTRUMENTATION_RESULT: shortMsg=Process crashed.
-RESULT attached = fail (100s)
