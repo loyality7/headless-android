@@ -44,17 +44,13 @@ class CdpChannelTest {
             serverOut.write(handshakeResp.toByteArray())
             serverOut.flush()
 
-            // Server reads until both command requests (id 1 and id 2) are received
+            // Server reads until both command frames arrive from client
             var totalRead = 0
             val readBuf = ByteArray(4096)
-            while (totalRead < readBuf.size) {
+            while (totalRead < 60) {
                 val n = serverIn.read(readBuf, totalRead, readBuf.size - totalRead)
                 if (n <= 0) break
                 totalRead += n
-                val str = String(readBuf, 0, totalRead)
-                if (str.contains("\"id\":1") && str.contains("\"id\":2")) {
-                    break
-                }
             }
 
             // Send response for command ID 2 first (unmasked text frame)
