@@ -44,25 +44,20 @@ class CdpChannelTest {
             serverOut.write(handshakeResp.toByteArray())
             serverOut.flush()
 
-            // Server reads incoming request frame(s)
-            val readBuf = ByteArray(4096)
-            val n = serverIn.read(readBuf, 0, readBuf.size)
-            if (n > 0 && serverIn.available() > 0) {
-                serverIn.read(readBuf, n, serverIn.available())
-            }
-
-            // Send response for command ID 2 first (unmasked text frame)
             val resp2 = """{"id": 2, "result": {"value": "second"}}"""
             val frame2 = byteArrayOf(0x81.toByte(), resp2.length.toByte()) + resp2.toByteArray()
-            serverOut.write(frame2)
 
-            // Send response for command ID 1 second (unmasked text frame)
             val resp1 = """{"id": 1, "result": {"value": "first"}}"""
             val frame1 = byteArrayOf(0x81.toByte(), resp1.length.toByte()) + resp1.toByteArray()
-            serverOut.write(frame1)
+
+            // Read client request frame(s)
+            val reqBuffer = ByteArray(1024)
+            serverIn.read(reqBuffer)
+
+            // Write reversed responses (ID 2 first, then ID 1)
+            serverOut.write(frame2 + frame1)
             serverOut.flush()
 
-            // Keep server thread alive reading until client closes channel
             runCatching {
                 val dummy = ByteArray(1024)
                 while (serverIn.read(dummy) != -1) {}
