@@ -46,10 +46,10 @@ public enum class SessionState {
  * - Destroying the view is NEVER performed inside a WebView client callback.
  * - Main thread operations are marshalled cleanly to the Looper.Main.
  */
-internal class PageSession(
+public class PageSession(
     context: Context,
-    val viewport: Viewport?,
-    val config: BrowserConfig,
+    public val viewport: Viewport?,
+    public val config: BrowserConfig,
     private val parentJob: Job? = null,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -65,17 +65,17 @@ internal class PageSession(
     private val jsExecutionTimeMs = java.util.concurrent.atomic.AtomicLong(0)
     private val blockedBytesCount = java.util.concurrent.atomic.AtomicLong(0)
 
-    fun recordNavigation() { navigationCount.incrementAndGet() }
-    fun recordJsEvaluation(durationMs: Long) {
+    public fun recordNavigation(): Unit { navigationCount.incrementAndGet() }
+    public fun recordJsEvaluation(durationMs: Long): Unit {
         jsEvalCount.incrementAndGet()
         jsExecutionTimeMs.addAndGet(durationMs)
     }
-    fun recordBlockedBytes(bytes: Long) { blockedBytesCount.addAndGet(bytes) }
+    public fun recordBlockedBytes(bytes: Long): Unit { blockedBytesCount.addAndGet(bytes) }
 
     /**
      * Returns snapshot of locally recorded session metrics.
      */
-    fun metrics(): SessionMetrics {
+    public fun metrics(): SessionMetrics {
         val duration = System.currentTimeMillis() - startTimeMs
         return SessionMetrics(
             sessionDurationMs = duration,
@@ -92,30 +92,30 @@ internal class PageSession(
      * Coroutine scope owned by this session.
      * Cancelling parentJob or calling [close] cancels this scope and triggers teardown.
      */
-    var sessionJob: Job = SupervisorJob(parentJob).apply {
+    public var sessionJob: Job = SupervisorJob(parentJob).apply {
         invokeOnCompletion { cause ->
             if (cause != null && !isClosed.get()) {
                 scheduleTeardown()
             }
         }
     }
-    var scope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate + sessionJob + CoroutineName("PageSession"))
+    public var scope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate + sessionJob + CoroutineName("PageSession"))
 
     private var _hostedWebView: HostedWebView? = null
 
-    val hostedWebView: HostedWebView
+    public val hostedWebView: HostedWebView
         get() {
             checkNotClosed()
             return _hostedWebView ?: throw browserError(ErrorCode.DETACHED, "session is not initialized")
         }
 
-    val state: SessionState
+    public val state: SessionState
         get() = stateRef.get()
 
     /**
      * Probes and returns actual capabilities for this session.
      */
-    suspend fun capabilities(): dev.headless.browser.Capabilities {
+    public suspend fun capabilities(): dev.headless.browser.Capabilities {
         checkNotClosed()
         return capabilityProbe.probeCapabilities(viewport)
     }
@@ -125,7 +125,7 @@ internal class PageSession(
      *
      * State transition: [SessionState.Acquired] -> [SessionState.Initialized].
      */
-    suspend fun initialize(): HostedWebView {
+    public suspend fun initialize(): HostedWebView {
         checkNotClosed()
         return runCatchingOnMain {
             checkNotClosed()
@@ -157,7 +157,7 @@ internal class PageSession(
      *
      * @return true to tell Android the app handled the renderer termination.
      */
-    fun handleRendererDeath(didCrash: Boolean): Boolean {
+    public fun handleRendererDeath(didCrash: Boolean): Boolean {
         if (didCrash) {
             rendererCrashCount.incrementAndGet()
         } else {
@@ -182,13 +182,13 @@ internal class PageSession(
     /**
      * Returns true if the WebView render process for this session died or was killed by OS.
      */
-    fun isRendererDead(): Boolean = isRendererDead.get()
+    public fun isRendererDead(): Boolean = isRendererDead.get()
 
     /**
      * Recovers a session after a renderer crash or termination.
      * Recreates the underlying WebView and resets session health state.
      */
-    suspend fun recover(): HostedWebView {
+    public suspend fun recover(): HostedWebView {
         if (!isRendererDead.get()) {
             val existing = _hostedWebView
             if (existing != null && !existing.destroyed) {
@@ -229,7 +229,7 @@ internal class PageSession(
      * @param targetState optional transition state during execution
      * @param block suspendable operation to execute
      */
-    suspend fun <T> runInState(targetState: SessionState, block: suspend CoroutineScope.() -> T): T {
+    public suspend fun <T> runInState(targetState: SessionState, block: suspend CoroutineScope.() -> T): T {
         checkNotClosed()
         val previousState = stateRef.get()
         if (previousState == SessionState.Closed) {
@@ -258,7 +258,7 @@ internal class PageSession(
     /**
      * Throws [ErrorCode.TARGET_CRASHED] or [ErrorCode.DETACHED] if the session has been closed or destroyed.
      */
-    fun checkNotClosed() {
+    public fun checkNotClosed(): Unit {
         if (isRendererDead.get()) {
             throw browserError(ErrorCode.TARGET_CRASHED, "renderer process died")
         }
@@ -289,7 +289,7 @@ internal class PageSession(
      * Schedules ordered teardown off the current stack trace if triggered from a callback.
      * Always posts to [mainHandler] so teardown never runs inside a WebView callback stack frame.
      */
-    fun scheduleTeardown() {
+    public fun scheduleTeardown(): Unit {
         if (isClosed.compareAndSet(false, true)) {
             stateRef.set(SessionState.Closed)
             sessionJob.cancel()
@@ -302,7 +302,7 @@ internal class PageSession(
      * Safe to call multiple times (idempotent).
      * Teardown itself is non-cancellable.
      */
-    suspend fun close() {
+    public suspend fun close(): Unit {
         if (isClosed.compareAndSet(false, true)) {
             stateRef.set(SessionState.Closed)
             sessionJob.cancel()
@@ -342,7 +342,7 @@ internal class PageSession(
         }
     }
 
-    companion object {
+    public companion object {
         private val activeSessionCount = java.util.concurrent.atomic.AtomicInteger(0)
         private val rendererCrashCount = java.util.concurrent.atomic.AtomicInteger(0)
         private val rendererOomCount = java.util.concurrent.atomic.AtomicInteger(0)
@@ -351,7 +351,7 @@ internal class PageSession(
         /**
          * Returns the current number of active initialized sessions.
          */
-        val activeSessions: Int
+        public val activeSessions: Int
             get() = activeSessionCount.get()
 
         private val ssrfBlockedCount = java.util.concurrent.atomic.AtomicInteger(0)
@@ -359,31 +359,31 @@ internal class PageSession(
         /**
          * Total number of renderer process crashes survived since process start.
          */
-        val totalRendererCrashes: Int
+        public val totalRendererCrashes: Int
             get() = rendererCrashCount.get()
 
         /**
          * Total number of renderer process OOM kills survived since process start.
          */
-        val totalRendererOoms: Int
+        public val totalRendererOoms: Int
             get() = rendererOomCount.get()
 
         /**
          * Total number of operations refused due to critical memory pressure.
          */
-        val totalMemoryLimitRefusals: Int
+        public val totalMemoryLimitRefusals: Int
             get() = memoryLimitRefusalCount.get()
 
         /**
          * Total number of navigations or redirects blocked by SSRF rules.
          */
-        val totalSsrfBlocked: Int
+        public val totalSsrfBlocked: Int
             get() = ssrfBlockedCount.get()
 
         /**
          * Records an SSRF blockage event.
          */
-        fun recordSsrfBlocked() {
+        public fun recordSsrfBlocked(): Unit {
             ssrfBlockedCount.incrementAndGet()
         }
     }

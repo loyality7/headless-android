@@ -18,7 +18,7 @@ import kotlinx.coroutines.withTimeout
 /**
  * Handles JavaScript evaluation and document-start init script injection on the platform backend.
  */
-internal class PlatformScriptEngine(
+public class PlatformScriptEngine(
     private val session: PageSession,
     private val config: BrowserConfig,
 ) {
@@ -31,7 +31,7 @@ internal class PlatformScriptEngine(
      * @return String representation of the return value, truncated if oversized
      * @throws BrowserException [ErrorCode.TIMEOUT] if execution exceeds timeout
      */
-    suspend fun evaluate(
+    public suspend fun evaluate(
         expression: String,
         timeoutMillis: Long = 0,
     ): String? = session.runInState(SessionState.Operating) {
@@ -66,7 +66,7 @@ internal class PlatformScriptEngine(
      *   the [WebViewFeature.DOCUMENT_START_SCRIPT] feature.
      */
     @android.annotation.SuppressLint("RequiresFeature")
-    suspend fun addInitScript(script: String) = session.runInState(SessionState.Operating) {
+    public suspend fun addInitScript(script: String): Unit = session.runInState(SessionState.Operating) {
         dev.headless.browser.core.CapabilityGuard.requireDocumentStartScript(session.capabilities())
 
         val hosted = session.hostedWebView
@@ -81,8 +81,8 @@ internal class PlatformScriptEngine(
         return raw.substring(0, MAX_OUTPUT_CHARS) + "\n... [truncated ${raw.length - MAX_OUTPUT_CHARS} characters]"
     }
 
-    companion object {
+    public companion object {
         /** 1 million characters output cap (~1 MB UTF-16) to prevent OOM. */
-        const val MAX_OUTPUT_CHARS = 1_000_000
+        public const val MAX_OUTPUT_CHARS: Int = 1_000_000
     }
 }

@@ -22,3 +22,6 @@ include(":fixtures")
 
 // The probe is throwaway: it measures the device before the library relies on it.
 include(":probe")
+
+// Interactive sample application showcasing headless scraping & automation
+include(":sample")

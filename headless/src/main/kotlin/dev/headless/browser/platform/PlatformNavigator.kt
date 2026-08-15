@@ -32,11 +32,16 @@ import java.util.concurrent.atomic.AtomicInteger
  * Surfacing load events, managing redirect chains, handling timeouts gracefully,
  * and mapping network/platform errors onto [ErrorCode.NAVIGATION_FAILED].
  */
-internal class PlatformNavigator(
+public class PlatformNavigator internal constructor(
     private val session: PageSession,
     private val config: BrowserConfig,
     private val router: PlatformRouter? = null,
 ) {
+    public constructor(
+        session: PageSession,
+        config: BrowserConfig,
+    ) : this(session, config, null)
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
@@ -46,7 +51,7 @@ internal class PlatformNavigator(
      * @throws BrowserException [ErrorCode.NAVIGATION_FAILED] if navigation fails fatally.
      * @throws BrowserException [ErrorCode.SSRF_BLOCKED] if URL is private and not allowed.
      */
-    suspend fun goto(
+    public suspend fun goto(
         url: String,
         waitUntil: WaitUntil = WaitUntil.Load,
         timeoutMillis: Long = 0,

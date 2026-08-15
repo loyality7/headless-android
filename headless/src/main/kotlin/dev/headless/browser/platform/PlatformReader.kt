@@ -15,7 +15,7 @@ import org.json.JSONObject
 /**
  * Handles DOM reading, element queries, and selector waiting on the platform backend.
  */
-internal class PlatformReader(
+public class PlatformReader(
     private val session: PageSession,
     private val scriptEngine: PlatformScriptEngine,
     private val config: BrowserConfig,
@@ -24,7 +24,7 @@ internal class PlatformReader(
     /**
      * Reads the current document title.
      */
-    suspend fun title(): String = session.runInState(SessionState.Operating) {
+    public suspend fun title(): String = session.runInState(SessionState.Operating) {
         val raw = scriptEngine.evaluate("document.title") ?: ""
         parseJsonString(raw)
     }
@@ -32,7 +32,7 @@ internal class PlatformReader(
     /**
      * Reads the inner text of the document body, capped to prevent OOM.
      */
-    suspend fun text(): String = session.runInState(SessionState.Operating) {
+    public suspend fun text(): String = session.runInState(SessionState.Operating) {
         val raw = scriptEngine.evaluate("(document.body ? document.body.innerText : '')") ?: ""
         parseJsonString(raw)
     }
@@ -40,7 +40,7 @@ internal class PlatformReader(
     /**
      * Reads the outer HTML of the document element, capped to prevent OOM.
      */
-    suspend fun content(): String = session.runInState(SessionState.Operating) {
+    public suspend fun content(): String = session.runInState(SessionState.Operating) {
         val raw = scriptEngine.evaluate("(document.documentElement ? document.documentElement.outerHTML : '')") ?: ""
         parseJsonString(raw)
     }
@@ -50,7 +50,7 @@ internal class PlatformReader(
      *
      * @return [Element] if found, `null` if no element matches.
      */
-    suspend fun querySelector(selector: String): Element? = session.runInState(SessionState.Operating) {
+    public suspend fun querySelector(selector: String): Element? = session.runInState(SessionState.Operating) {
         val escaped = JSONObject.quote(selector)
         val script = """
             (function() {
@@ -79,7 +79,7 @@ internal class PlatformReader(
     /**
      * Queries all elements matching [selector].
      */
-    suspend fun querySelectorAll(selector: String): List<Element> = session.runInState(SessionState.Operating) {
+    public suspend fun querySelectorAll(selector: String): List<Element> = session.runInState(SessionState.Operating) {
         val escaped = JSONObject.quote(selector)
         val script = """
             (function() {
@@ -116,7 +116,7 @@ internal class PlatformReader(
      * @return [Element] as soon as it appears.
      * @throws BrowserException [ErrorCode.SELECTOR_NOT_FOUND] if element does not appear before timeout.
      */
-    suspend fun waitForSelector(
+    public suspend fun waitForSelector(
         selector: String,
         timeoutMillis: Long = 0,
     ): Element = session.runInState(SessionState.Operating) {

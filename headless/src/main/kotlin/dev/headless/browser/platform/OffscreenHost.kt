@@ -242,16 +242,16 @@ internal class OffscreenHost(context: Context) {
 }
 
 /** A WebView and the arrangement it was given. */
-internal class HostedWebView(
-    val webView: WebView,
-    val mode: HostMode,
-    val width: Int,
-    val height: Int,
+public class HostedWebView(
+    public val webView: WebView,
+    public val mode: HostMode,
+    public val width: Int,
+    public val height: Int,
 ) {
     /** Set once, so a second destroy is a no-op rather than a crash. */
-    var destroyed: Boolean = false
+    public var destroyed: Boolean = false
 
     /** Drawing only produces the page from an attached view of real size. */
-    val canCapture: Boolean
+    public val canCapture: Boolean
         get() = mode != HostMode.Detached && width > 1 && height > 1
 }
