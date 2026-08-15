@@ -93,10 +93,14 @@ class PlatformReaderTest {
     @Test
     fun missingSelectorRaisesSelectorNotFound() = runBlocking {
         navigator.goto(site.url(Fixture.Static), WaitUntil.Load)
-        val ex = assertThrows(BrowserException::class.java) {
-            runBlocking { reader.waitForSelector("#missing-element-id", timeoutMillis = 100) }
+        var caught: BrowserException? = null
+        try {
+            reader.waitForSelector("#missing-element-id", timeoutMillis = 100)
+        } catch (ex: BrowserException) {
+            caught = ex
         }
-        assertEquals(ErrorCode.SELECTOR_NOT_FOUND, ex.code)
+        assertNotNull(caught)
+        assertEquals(ErrorCode.SELECTOR_NOT_FOUND, caught?.code)
     }
 
     @Test

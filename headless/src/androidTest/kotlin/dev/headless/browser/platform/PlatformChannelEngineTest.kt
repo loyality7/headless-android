@@ -41,6 +41,7 @@ class PlatformChannelEngineTest {
 
     @After
     fun tearDown() = runBlocking {
+        channelEngine.clearExposedFunctions()
         session.close()
         site.close()
     }

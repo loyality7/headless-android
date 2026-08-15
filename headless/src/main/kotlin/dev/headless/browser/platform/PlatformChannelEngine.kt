@@ -58,6 +58,21 @@ internal class PlatformChannelEngine(
         }
     }
 
+    /**
+     * Removes all registered WebMessageListeners from the hosted WebView.
+     */
+    @android.annotation.SuppressLint("RequiresFeature")
+    suspend fun clearExposedFunctions() {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
+        val hosted = session.hostedWebView
+        withContext(Dispatchers.Main) {
+            for (name in exposedFunctions) {
+                runCatching { WebViewCompat.removeWebMessageListener(hosted.webView, name) }
+            }
+            exposedFunctions.clear()
+        }
+    }
+
     @android.annotation.SuppressLint("RequiresFeature")
     private fun handleIncomingMessage(
         functionName: String,
