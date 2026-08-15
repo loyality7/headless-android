@@ -55,6 +55,15 @@
         android:textSize="12sp"
         android:layout_marginBottom="16dp" />
 
+    <ImageView
+        android:id="@+id/ivScreenshot"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="fitCenter"
+        android:visibility="gone"
+        android:background="#CCCCCC"
+        android:layout_marginBottom="16dp" />
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"

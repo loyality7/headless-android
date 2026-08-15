@@ -29,7 +29,7 @@ public data class ScreenshotOptions(
 /**
  * Handles view drawing and screenshot capture for the platform backend.
  */
-internal class PlatformScreenshotEngine(
+public class PlatformScreenshotEngine(
     private val session: PageSession,
     private val config: BrowserConfig,
 ) {
@@ -42,7 +42,7 @@ internal class PlatformScreenshotEngine(
      * @return [ByteArray] containing the encoded screenshot bytes.
      * @throws BrowserException [ErrorCode.UNSUPPORTED] if session is configured with a 1x1 viewport.
      */
-    suspend fun screenshot(
+    public suspend fun screenshot(
         options: ScreenshotOptions = ScreenshotOptions(),
     ): ByteArray = session.runInState(SessionState.Operating) {
         dev.headless.browser.core.CapabilityGuard.requireScreenshots(session.capabilities())

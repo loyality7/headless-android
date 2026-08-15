@@ -1,8 +1,10 @@
 package dev.headless.sample
 
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -13,10 +15,9 @@ import dev.headless.browser.WaitUntil
 import dev.headless.browser.core.PageSession
 import dev.headless.browser.platform.PlatformNavigator
 import dev.headless.browser.platform.PlatformReader
+import dev.headless.browser.platform.PlatformScreenshotEngine
 import dev.headless.browser.platform.PlatformScriptEngine
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnWikipedia: Button
     private lateinit var progressBar: ProgressBar
     private lateinit var tvMetrics: TextView
+    private lateinit var ivScreenshot: ImageView
     private lateinit var tvResults: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +36,7 @@ class MainActivity : AppCompatActivity() {
         btnWikipedia = findViewById(R.id.btnScrapeWikipedia)
         progressBar = findViewById(R.id.progressBar)
         tvMetrics = findViewById(R.id.tvMetrics)
+        ivScreenshot = findViewById(R.id.ivScreenshot)
         tvResults = findViewById(R.id.tvResults)
 
         btnHackerNews.setOnClickListener {
@@ -59,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     ) {
         lifecycleScope.launch {
             setLoading(true)
+            ivScreenshot.visibility = View.GONE
             tvResults.text = "Initializing headless browser session..."
 
             val config = BrowserConfig(enableProtocolBackend = false)
@@ -69,13 +73,24 @@ class MainActivity : AppCompatActivity() {
                 val navigator = PlatformNavigator(session, config)
                 val scriptEngine = PlatformScriptEngine(session, config)
                 val reader = PlatformReader(session, scriptEngine, config)
+                val screenshotEngine = PlatformScreenshotEngine(session, config)
 
                 tvResults.text = "Navigating offscreen to $url..."
                 navigator.goto(url, WaitUntil.Load)
 
                 val resultText = extractor(session, reader)
-                val metrics = session.metrics()
 
+                // Capture screenshot of offscreen page
+                runCatching {
+                    val screenshotBytes = screenshotEngine.screenshot()
+                    val bitmap = BitmapFactory.decodeByteArray(screenshotBytes, 0, screenshotBytes.size)
+                    if (bitmap != null) {
+                        ivScreenshot.setImageBitmap(bitmap)
+                        ivScreenshot.visibility = View.VISIBLE
+                    }
+                }
+
+                val metrics = session.metrics()
                 tvMetrics.text = "Metrics: duration=${metrics.sessionDurationMs}ms | navs=${metrics.totalNavigations} | jsEvals=${metrics.totalJsEvaluations}"
                 tvResults.text = resultText
             } catch (ex: Exception) {
