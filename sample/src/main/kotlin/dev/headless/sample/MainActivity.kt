@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     // Tab 1 Views
     private lateinit var btnScrapeHackerNews: Button
     private lateinit var btnScrapeWikipedia: Button
+    private lateinit var btnTestFormSubmit: Button
     private lateinit var tvScrapeResults: TextView
 
     // Tab 2 Views
@@ -67,6 +68,7 @@ class MainActivity : AppCompatActivity() {
 
         btnScrapeHackerNews = findViewById(R.id.btnScrapeHackerNews)
         btnScrapeWikipedia = findViewById(R.id.btnScrapeWikipedia)
+        btnTestFormSubmit = findViewById(R.id.btnTestFormSubmit)
         tvScrapeResults = findViewById(R.id.tvScrapeResults)
 
         btnCaptureScreenshot = findViewById(R.id.btnCaptureScreenshot)
@@ -187,6 +189,58 @@ class MainActivity : AppCompatActivity() {
                     """.trimIndent()
                 } catch (e: Exception) {
                     tvScrapeResults.text = "Search Error: ${e.message}"
+                } finally {
+                    session.close()
+                    setLoading(false)
+                }
+            }
+        }
+
+        // Live Multi-Element HTML Form Automation: Text inputs, Radios, Checkboxes, Textarea, and Submit
+        btnTestFormSubmit.setOnClickListener {
+            lifecycleScope.launch {
+                setLoading(true)
+                tvScrapeResults.text = "Step 1: Navigating to Complete HTML Form Test Site..."
+                val config = BrowserConfig(enableProtocolBackend = false)
+                val session = PageSession(this@MainActivity, Viewport.Phone, config)
+                try {
+                    session.initialize()
+                    val nav = PlatformNavigator(session, config)
+                    val script = PlatformScriptEngine(session, config)
+                    val reader = PlatformReader(session, script, config)
+                    val input = PlatformInputEngine(session, script, reader, config)
+
+                    nav.goto("https://httpbin.org/forms/post", WaitUntil.Load)
+
+                    tvScrapeResults.text = "Step 2: Filling Customer Details & Preferences..."
+                    input.type("input[name='custname']", "John Doe")
+                    input.type("input[name='custtel']", "+15550199")
+                    input.type("input[name='custemail']", "john@example.com")
+
+                    tvScrapeResults.text = "Step 3: Selecting Radio Option & Checkboxes..."
+                    input.click("input[name='size'][value='medium']")
+                    input.click("input[name='topping'][value='bacon']")
+                    input.click("input[name='topping'][value='cheese']")
+
+                    tvScrapeResults.text = "Step 4: Typing Textarea Instructions & Submitting..."
+                    input.type("textarea[name='comments']", "Extra crispy crust please!")
+                    input.click("button")
+
+                    kotlinx.coroutines.delay(1500)
+                    val responseText = reader.text().take(300)
+
+                    tvScrapeResults.text = """
+                        === COMPLETE HTML FORM SUBMISSION COMPLETED ===
+                        
+                        1. [Test URL]: https://httpbin.org/forms/post
+                        2. [Customer]: John Doe (+15550199, john@example.com)
+                        3. [Pizza Preferences]: Medium, Bacon + Cheese
+                        4. [Comments]: Extra crispy crust please!
+                        5. [Server Response]:
+                        $responseText
+                    """.trimIndent()
+                } catch (e: Exception) {
+                    tvScrapeResults.text = "Form Submission Error: ${e.message}"
                 } finally {
                     session.close()
                     setLoading(false)
@@ -330,6 +384,7 @@ class MainActivity : AppCompatActivity() {
         progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         btnScrapeHackerNews.isEnabled = !loading
         btnScrapeWikipedia.isEnabled = !loading
+        btnTestFormSubmit.isEnabled = !loading
         btnCaptureScreenshot.isEnabled = !loading
         btnFetchCookies.isEnabled = !loading
         btnClearStorage.isEnabled = !loading
