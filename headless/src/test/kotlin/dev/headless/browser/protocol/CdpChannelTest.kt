@@ -17,7 +17,7 @@ import java.io.PipedOutputStream
 
 class CdpChannelTest {
 
-    @Test
+    @Test(timeout = 10_000)
     fun commandCorrelationWithInterleavedResponses() = runBlocking {
         val clientOut = PipedOutputStream()
         val serverIn = PipedInputStream(clientOut)
@@ -85,7 +85,7 @@ class CdpChannelTest {
         channel.close()
     }
 
-    @Test
+    @Test(timeout = 10_000)
     fun slowEventSubscriberDoesNotStallCommands() = runBlocking {
         val clientOut = PipedOutputStream()
         val serverIn = PipedInputStream(clientOut)
@@ -138,7 +138,7 @@ class CdpChannelTest {
         channel.close()
     }
 
-    @Test
+    @Test(timeout = 10_000)
     fun teardownCancelsOutstandingCommandsWithCancelledError() = runBlocking {
         val clientOut = PipedOutputStream()
         val serverIn = PipedInputStream(clientOut)

@@ -25,7 +25,7 @@ class WebSocketClientTest {
         assertEquals(expectedAccept, acceptKey)
     }
 
-    @Test
+    @Test(timeout = 10_000)
     fun upgradeHandshakeValidatesAcceptKeyAndRejectsMalformedStatus() = runBlocking {
         val clientOut = PipedOutputStream()
         val serverIn = PipedInputStream(clientOut)
@@ -54,7 +54,7 @@ class WebSocketClientTest {
         assertFalse(client.isConnected)
     }
 
-    @Test
+    @Test(timeout = 10_000)
     fun fragmentedMessageReassembly() = runBlocking {
         val clientOut = PipedOutputStream()
         val serverIn = PipedInputStream(clientOut)
@@ -102,7 +102,7 @@ class WebSocketClientTest {
         client.close()
     }
 
-    @Test
+    @Test(timeout = 10_000)
     fun cleanCloseHandshakeTerminatesReadLoopAndCallback() = runBlocking {
         val clientOut = PipedOutputStream()
         val serverIn = PipedInputStream(clientOut)
