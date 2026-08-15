@@ -156,13 +156,21 @@ class CdpChannelTest {
 
             serverOut.write(handshakeResp.toByteArray())
             serverOut.flush()
+
+            // Keep reading loop active so pipe stream stays open while command is pending
+            runCatching {
+                while (true) {
+                    if (serverIn.read(buffer) == -1) break
+                }
+            }
         }
         serverThread.start()
 
         client.connect()
         val channel = CdpChannel(client)
 
-        val pendingCmd = async(kotlinx.coroutines.SupervisorJob()) { channel.sendCommand("Page.navigate") }
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+        val pendingCmd = scope.async { channel.sendCommand("Page.navigate") }
         Thread.sleep(200)
 
         // Teardown channel while command is pending
