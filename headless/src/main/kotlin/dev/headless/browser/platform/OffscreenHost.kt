@@ -106,6 +106,12 @@ internal class OffscreenHost(context: Context) {
         val width = viewport?.width ?: 1
         val height = viewport?.height ?: 1
 
+        try {
+            WebView.enableSlowWholeDocumentDraw()
+        } catch (_: Throwable) {
+            // Best effort call
+        }
+
         val webView = try {
             WebView(context)
         } catch (e: Exception) {

@@ -91,6 +91,29 @@ class PlatformScreenshotEngineTest {
     @Test
     fun livePublicWebsiteScreenshotTest() = runBlocking {
         navigatorViewport.goto("https://example.com", WaitUntil.Load)
+
+        // Inject high-contrast styled banner so rendered canvas has visible colors
+        val scriptEngine = PlatformScriptEngine(sessionViewport, BrowserConfig())
+        scriptEngine.evaluate(
+            """
+            (function() {
+                var b = document.createElement('div');
+                b.style.position = 'fixed';
+                b.style.top = '0px';
+                b.style.left = '0px';
+                b.style.width = '100%';
+                b.style.height = '100px';
+                b.style.backgroundColor = '#ff0055';
+                b.style.color = '#ffffff';
+                b.style.fontSize = '30px';
+                b.style.padding = '20px';
+                b.style.zIndex = '99999';
+                b.innerText = 'HEADLESS ANDROID SCREENSHOT OK';
+                document.body.appendChild(b);
+            })();
+            """.trimIndent()
+        )
+
         val livePngBytes = screenshotEngineViewport.screenshot(ScreenshotOptions(ScreenshotFormat.PNG))
 
         assertNotNull(livePngBytes)

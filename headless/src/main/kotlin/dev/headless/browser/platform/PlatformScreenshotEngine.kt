@@ -66,6 +66,12 @@ internal class PlatformScreenshotEngine(
         val deferred = CompletableDeferred<ByteArray>()
 
         withContext(Dispatchers.Main) {
+            hosted.webView.measure(
+                android.view.View.MeasureSpec.makeMeasureSpec(width, android.view.View.MeasureSpec.EXACTLY),
+                android.view.View.MeasureSpec.makeMeasureSpec(height, android.view.View.MeasureSpec.EXACTLY),
+            )
+            hosted.webView.layout(0, 0, width, height)
+
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             hosted.webView.draw(canvas)
