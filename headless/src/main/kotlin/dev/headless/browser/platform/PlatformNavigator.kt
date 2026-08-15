@@ -187,6 +187,15 @@ internal class PlatformNavigator(
             }
         }
 
+        override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+            val didCrash = detail?.didCrash() ?: true
+            val crashMsg = if (didCrash) "Renderer process crashed" else "Renderer process killed by system (OOM)"
+            fatalError = browserError(ErrorCode.TARGET_CRASHED, crashMsg)
+            domReadyDeferred.completeExceptionally(fatalError!!)
+            loadDeferred.completeExceptionally(fatalError!!)
+            return session.handleRendererDeath(didCrash)
+        }
+
         override fun onReceivedHttpError(
             view: WebView?,
             request: WebResourceRequest?,

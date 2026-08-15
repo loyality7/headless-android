@@ -55,6 +55,7 @@ internal class PageSession(
     private val host = OffscreenHost(context)
     private val stateRef = AtomicReference(SessionState.Acquired)
     private val isClosed = AtomicBoolean(false)
+    private val isRendererDead = AtomicBoolean(false)
     private val capabilityProbe = dev.headless.browser.protocol.ProtocolCapabilityProbe(context, config)
 
     /**
@@ -105,10 +106,49 @@ internal class PageSession(
                 } catch (_: Throwable) {}
             }
             val hosted = host.create(viewport)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                hosted.webView.webViewClient = object : android.webkit.WebViewClient() {
+                    override fun onRenderProcessGone(
+                        view: android.webkit.WebView?,
+                        detail: android.webkit.RenderProcessGoneDetail?,
+                    ): Boolean {
+                        val didCrash = detail?.didCrash() ?: true
+                        return handleRendererDeath(didCrash)
+                    }
+                }
+            }
             _hostedWebView = hosted
             activeSessionCount.incrementAndGet()
             hosted
         }
+    }
+
+    /**
+     * Handles renderer termination (crash or OOM kill) from WebView callbacks.
+     * Discards the dead view, closes session state, and prevents host app crash.
+     *
+     * @return true to tell Android the app handled the renderer termination.
+     */
+    fun handleRendererDeath(didCrash: Boolean): Boolean {
+        if (didCrash) {
+            rendererCrashCount.incrementAndGet()
+        } else {
+            rendererOomCount.incrementAndGet()
+        }
+
+        isRendererDead.set(true)
+        val hosted = _hostedWebView
+        _hostedWebView = null
+        if (hosted != null) {
+            hosted.destroyed = true
+            activeSessionCount.decrementAndGet()
+        }
+
+        stateRef.set(SessionState.Closed)
+        if (isClosed.compareAndSet(false, true)) {
+            sessionJob.cancel()
+        }
+        return true
     }
 
     /**
@@ -144,9 +184,12 @@ internal class PageSession(
     }
 
     /**
-     * Throws [ErrorCode.DETACHED] if the session has been closed or destroyed.
+     * Throws [ErrorCode.TARGET_CRASHED] or [ErrorCode.DETACHED] if the session has been closed or destroyed.
      */
     fun checkNotClosed() {
+        if (isRendererDead.get()) {
+            throw browserError(ErrorCode.TARGET_CRASHED, "renderer process died")
+        }
         if (isClosed.get() || stateRef.get() == SessionState.Closed) {
             throw browserError(ErrorCode.DETACHED, "session is closed")
         }
@@ -225,11 +268,25 @@ internal class PageSession(
 
     companion object {
         private val activeSessionCount = java.util.concurrent.atomic.AtomicInteger(0)
+        private val rendererCrashCount = java.util.concurrent.atomic.AtomicInteger(0)
+        private val rendererOomCount = java.util.concurrent.atomic.AtomicInteger(0)
 
         /**
          * Returns the current number of active initialized sessions.
          */
         val activeSessions: Int
             get() = activeSessionCount.get()
+
+        /**
+         * Total number of renderer process crashes survived since process start.
+         */
+        val totalRendererCrashes: Int
+            get() = rendererCrashCount.get()
+
+        /**
+         * Total number of renderer process OOM kills survived since process start.
+         */
+        val totalRendererOoms: Int
+            get() = rendererOomCount.get()
     }
 }

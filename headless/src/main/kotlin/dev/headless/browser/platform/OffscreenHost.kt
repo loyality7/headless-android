@@ -125,9 +125,16 @@ internal class OffscreenHost(context: Context) {
         webView.settings.databaseEnabled = true
         webView.settings.useWideViewPort = true
         webView.settings.loadWithOverviewMode = true
-        // Nothing here should ever reach the filesystem: page content is hostile.
         webView.settings.allowFileAccess = false
         webView.settings.allowContentAccess = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webView.webViewClient = object : android.webkit.WebViewClient() {
+                override fun onRenderProcessGone(
+                    view: WebView?,
+                    detail: android.webkit.RenderProcessGoneDetail?,
+                ): Boolean = true
+            }
+        }
 
         val mode = availableMode()
         when (mode) {
