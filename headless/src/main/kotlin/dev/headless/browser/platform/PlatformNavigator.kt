@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class PlatformNavigator(
     private val session: PageSession,
     private val config: BrowserConfig,
+    private val router: PlatformRouter? = null,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -148,6 +149,15 @@ internal class PlatformNavigator(
                 domReadyDeferred.complete(Unit)
                 loadDeferred.complete(Unit)
             }
+        }
+
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest?,
+        ): WebResourceResponse? {
+            val intercepted = router?.interceptRequest(request)
+            if (intercepted != null) return intercepted
+            return super.shouldInterceptRequest(view, request)
         }
 
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
