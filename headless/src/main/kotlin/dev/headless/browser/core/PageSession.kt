@@ -150,6 +150,42 @@ internal class PageSession(
     }
 
     /**
+     * Returns true if the WebView render process for this session died or was killed by OS.
+     */
+    fun isRendererDead(): Boolean = isRendererDead.get()
+
+    /**
+     * Recovers a session after a renderer crash or termination.
+     * Recreates the underlying WebView and resets session health state.
+     */
+    suspend fun recover(): HostedWebView {
+        if (!isRendererDead.get()) {
+            val existing = _hostedWebView
+            if (existing != null && !existing.destroyed) {
+                return existing
+            }
+        }
+        return runCatchingOnMain {
+            val hosted = host.create(viewport)
+            hosted.webView.webViewClient = object : android.webkit.WebViewClient() {
+                override fun onRenderProcessGone(
+                    view: android.webkit.WebView?,
+                    detail: android.webkit.RenderProcessGoneDetail?,
+                ): Boolean {
+                    val didCrash = detail?.didCrash() ?: true
+                    return handleRendererDeath(didCrash)
+                }
+            }
+            _hostedWebView = hosted
+            isRendererDead.set(false)
+            isClosed.set(false)
+            stateRef.set(SessionState.Initialized)
+            activeSessionCount.incrementAndGet()
+            hosted
+        }
+    }
+
+    /**
      * Guarantees that an operation runs within the active session state.
      *
      * @param targetState optional transition state during execution

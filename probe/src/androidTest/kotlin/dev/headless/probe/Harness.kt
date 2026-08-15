@@ -48,7 +48,12 @@ fun <T> onMain(block: () -> T): T {
 
 /** Runs [block] with a live host activity. Every path closes the scenario. */
 fun <T> withHost(block: (HostActivity) -> T): T {
-    ActivityScenario.launch(HostActivity::class.java).use { scenario ->
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val intent = android.content.Intent(context, HostActivity::class.java).apply {
+        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+    }
+    runCatching { context.startActivity(intent) }
+    ActivityScenario.launch<HostActivity>(intent).use { scenario ->
         var activity: HostActivity? = null
         scenario.onActivity { activity = it }
         return block(requireNotNull(activity) { "host activity never started" })
@@ -93,13 +98,20 @@ fun <T> withDetachedWebView(block: (android.webkit.WebView) -> T): T {
 }
 
 /** Loads [url] into a WebView that has no activity, waiting for the load to finish. */
-fun loadDetached(webView: android.webkit.WebView, url: String, timeoutMs: Long = 30_000) {
+fun loadDetached(webView: android.webkit.WebView, url: String, timeoutMs: Long = 10_000) {
     val finished = java.util.concurrent.CountDownLatch(1)
     onMain {
         webView.webViewClient = object : android.webkit.WebViewClient() {
-            override fun onPageFinished(view: android.webkit.WebView, loadedUrl: String) = finished.countDown()
+            override fun onPageFinished(view: android.webkit.WebView, loadedUrl: String) {
+                finished.countDown()
+            }
         }
-        webView.loadUrl(url)
+        if (url.startsWith("data:text/html,")) {
+            val rawHtml = java.net.URLDecoder.decode(url.removePrefix("data:text/html,"), "UTF-8")
+            webView.loadDataWithBaseURL("http://localhost/", rawHtml, "text/html", "UTF-8", null)
+        } else {
+            webView.loadUrl(url)
+        }
     }
     check(finished.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)) {
         "page did not finish loading within ${timeoutMs}ms: $url"
@@ -107,13 +119,20 @@ fun loadDetached(webView: android.webkit.WebView, url: String, timeoutMs: Long =
 }
 
 /** Loads [url] and waits for onPageFinished, or fails after [timeoutMs]. */
-fun HostActivity.load(webView: WebView, url: String, timeoutMs: Long = 30_000) {
+fun HostActivity.load(webView: WebView, url: String, timeoutMs: Long = 10_000) {
     val finished = java.util.concurrent.CountDownLatch(1)
     onMain {
         webView.webViewClient = object : android.webkit.WebViewClient() {
-            override fun onPageFinished(view: WebView, loadedUrl: String) = finished.countDown()
+            override fun onPageFinished(view: WebView, loadedUrl: String) {
+                finished.countDown()
+            }
         }
-        webView.loadUrl(url)
+        if (url.startsWith("data:text/html,")) {
+            val rawHtml = java.net.URLDecoder.decode(url.removePrefix("data:text/html,"), "UTF-8")
+            webView.loadDataWithBaseURL("http://localhost/", rawHtml, "text/html", "UTF-8", null)
+        } else {
+            webView.loadUrl(url)
+        }
     }
     check(finished.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)) {
         "page did not finish loading within ${timeoutMs}ms: $url"

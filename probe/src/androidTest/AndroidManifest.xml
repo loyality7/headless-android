@@ -3,6 +3,6 @@
     <application>
         <activity
             android:name="dev.headless.probe.HostActivity"
-            android:exported="false" />
+            android:exported="true" />
     </application>
 </manifest>

@@ -76,4 +76,26 @@ class RendererDeathDeviceTest {
             assertTrue(ex.message!!.contains("renderer process died"))
         }
     }
+
+    @Test
+    fun sessionCanBeRecoveredAfterRendererDeath() = runBlocking {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return@runBlocking
+        }
+
+        val session = PageSession(context, viewport = null, config = BrowserConfig(enableProtocolBackend = false))
+        session.initialize()
+
+        withContext(Dispatchers.Main) {
+            session.handleRendererDeath(didCrash = true)
+        }
+
+        assertTrue("Session should be marked renderer dead", session.isRendererDead())
+
+        val recoveredHosted = session.recover()
+        org.junit.Assert.assertNotNull(recoveredHosted)
+        org.junit.Assert.assertFalse("Recovered session renderer should not be dead", session.isRendererDead())
+
+        session.close()
+    }
 }

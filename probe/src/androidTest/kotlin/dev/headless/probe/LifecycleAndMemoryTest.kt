@@ -109,6 +109,11 @@ class LifecycleAndMemoryTest {
     }
 
     private fun drawIsNonBlank(webView: WebView, width: Int, height: Int): Boolean = onMain {
+        webView.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(width, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(height, android.view.View.MeasureSpec.EXACTLY),
+        )
+        webView.layout(0, 0, width, height)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         webView.draw(Canvas(bitmap))
         val pixels = IntArray(width * height)

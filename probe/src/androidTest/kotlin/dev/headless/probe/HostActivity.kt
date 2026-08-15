@@ -30,8 +30,8 @@ class HostActivity : Activity() {
         container.addView(
             webView,
             FrameLayout.LayoutParams(width, height).apply {
-                leftMargin = -10_000
-                topMargin = -10_000
+                leftMargin = 0
+                topMargin = 0
             }
         )
         return webView

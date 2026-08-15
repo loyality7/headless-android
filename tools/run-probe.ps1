@@ -51,7 +51,7 @@ Ok "$model, Android $release (API $sdk), WebView $($webview.Trim())"
 Step "lifting OEM restrictions"
 adb shell settings put secure miui_optimization 0 2>&1 | Out-Null
 adb shell dumpsys deviceidle whitelist +$pkg 2>&1 | Out-Null
-adb shell appops set $pkg 10021 allow 2>&1 | Out-Null
+10000..10030 | ForEach-Object { adb shell appops set $pkg $_ allow 2>&1 | Out-Null }
 adb shell cmd appops set $pkg SYSTEM_ALERT_WINDOW allow 2>&1 | Out-Null
 adb shell setprop log.tag.probe VERBOSE 2>&1 | Out-Null
 Ok "background activity start, doze whitelist, verbose logging"
@@ -122,54 +122,16 @@ foreach ($chunk in $selected) {
     Step "[$index/$total] $($chunk.what)   (about $($chunk.est), $intoRun into the run)"
     Note "running $($chunk.test)"
 
-    adb logcat -c 2>&1 | Out-Null
+    adb shell am force-stop $pkg 2>&1 | Out-Null
+    if ($chunk.key -eq "attached" -or $chunk.key -eq "draw") {
+        adb shell am start -n "$pkg/dev.headless.probe.HostActivity" 2>&1 | Out-Null
+        Start-Sleep -Milliseconds 500
+    }
     $sw = [Diagnostics.Stopwatch]::StartNew()
-
-    # Redirect to a file rather than capturing a job's output. A running job
-    # hands back nothing until it exits, so a chunk that has to be killed took
-    # every measurement it had already produced down with it.
-    $outFile = Join-Path $env:TEMP "probe-$($chunk.key).out"
-    Remove-Item $outFile -ErrorAction SilentlyContinue
-    $proc = Start-Process -FilePath "adb" -PassThru -NoNewWindow -RedirectStandardOutput $outFile `
-        -ArgumentList @("shell", "am", "instrument", "-w", "-e", "class", "dev.headless.probe.$($chunk.test)", $runner)
-
-    # Short ceiling. These chunks pass in seconds when they pass at all, so a
-    # long wait only delays the diagnosis.
-    $limit = if ($chunk.slow) { 240 } else { 35 }
-    $shown = 0
-    $printed = 0
-
-    # Tail the file as it fills, so measurements appear the moment they happen.
-    while (-not $proc.HasExited -and $sw.Elapsed.TotalSeconds -lt $limit) {
-        if (Test-Path $outFile) {
-            $lines = @(Get-Content $outFile -ErrorAction SilentlyContinue)
-            if ($lines.Count -gt $shown) {
-                foreach ($line in $lines[$shown..($lines.Count - 1)]) {
-                    if ($line -cmatch "MEASUREMENT") {
-                        Write-Host "`r   $($line.Trim())                    " -ForegroundColor Yellow
-                        $line.Trim() | Add-Content $log
-                        $printed++
-                    }
-                }
-                $shown = $lines.Count
-            }
-        }
-        Write-Host "`r   waiting $([int]$sw.Elapsed.TotalSeconds)s / ${limit}s   " -NoNewline -ForegroundColor DarkGray
-        Start-Sleep -Milliseconds 400
-    }
-    Write-Host "`r                              `r" -NoNewline
-
-    $timedOut = -not $proc.HasExited
-    if ($timedOut) {
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-        adb shell am force-stop $pkg 2>&1 | Out-Null
-    }
+    $output = adb shell am instrument -w -e class "dev.headless.probe.$($chunk.test)" $runner 2>&1
     $seconds = [int]$sw.Elapsed.TotalSeconds
-    $output = @(Get-Content $outFile -ErrorAction SilentlyContinue)
-    if ($timedOut) { $output += "TIMEOUT after ${limit}s" }
 
-    # Anything the tail missed, plus logcat as the backup channel. Case-sensitive:
-    # matching loosely picked up Google Play services' own "measurement" logging.
+    # Capture measurements from instrumentation output or logcat
     $measurements = $output | Where-Object { $_ -cmatch "MEASUREMENT" } | ForEach-Object { $_.Trim() }
     if (-not $measurements) {
         $measurements = (adb logcat -d 2>&1) |
@@ -177,10 +139,7 @@ foreach ($chunk in $selected) {
             ForEach-Object { "MEASUREMENT " + ($_ -split "MEASUREMENT ")[-1] }
     }
 
-    # A chunk that finishes inside the first poll produces everything at once,
-    # so print whatever the live tail did not already show.
-    $remaining = @($measurements) | Select-Object -Skip $printed
-    foreach ($m in $remaining) { Write-Host "   $m" -ForegroundColor Yellow; $m | Add-Content $log }
+    foreach ($m in $measurements) { Write-Host "   $m" -ForegroundColor Yellow; $m | Add-Content $log }
 
     if (-not $measurements) {
         Note "no measurements on either channel: the process died before reporting anything"
