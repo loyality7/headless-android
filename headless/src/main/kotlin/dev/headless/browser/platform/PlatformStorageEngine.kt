@@ -26,7 +26,7 @@ public data class Cookie(
  * Isolation between sessions is achieved by explicit clearing ([clearCookies], [clearStorage]),
  * not per-session storage separation.
  */
-internal class PlatformStorageEngine(
+public class PlatformStorageEngine(
     private val session: PageSession,
     private val scriptEngine: PlatformScriptEngine,
     private val config: BrowserConfig,
@@ -42,7 +42,7 @@ internal class PlatformStorageEngine(
      *
      * Note: Cookies are process-global in Android WebView.
      */
-    suspend fun getCookies(url: String): List<Cookie> = session.runInState(SessionState.Operating) {
+    public suspend fun getCookies(url: String): List<Cookie> = session.runInState(SessionState.Operating) {
         val cookieHeader = cookieManager.getCookie(url) ?: return@runInState emptyList()
         cookieHeader.split(";").mapNotNull { entry ->
             val parts = entry.trim().split("=", limit = 2)
@@ -57,7 +57,7 @@ internal class PlatformStorageEngine(
      *
      * Note: Cookies are process-global in Android WebView.
      */
-    suspend fun setCookie(url: String, cookieHeader: String): Boolean = session.runInState(SessionState.Operating) {
+    public suspend fun setCookie(url: String, cookieHeader: String): Boolean = session.runInState(SessionState.Operating) {
         val deferred = CompletableDeferred<Boolean>()
         withContext(Dispatchers.Main) {
             cookieManager.setCookie(url, cookieHeader, ValueCallback { success ->
@@ -73,7 +73,7 @@ internal class PlatformStorageEngine(
      *
      * Note: This affects all WebViews running in the host app process.
      */
-    suspend fun clearCookies(): Boolean = session.runInState(SessionState.Operating) {
+    public suspend fun clearCookies(): Boolean = session.runInState(SessionState.Operating) {
         val deferred = CompletableDeferred<Boolean>()
         withContext(Dispatchers.Main) {
             cookieManager.removeAllCookies(ValueCallback { removed ->
@@ -88,7 +88,7 @@ internal class PlatformStorageEngine(
      * Clears local storage, session storage, and IndexedDB for the current page origin,
      * as well as process-global [WebStorage].
      */
-    suspend fun clearStorage(): Unit = session.runInState(SessionState.Operating) {
+    public suspend fun clearStorage(): Unit = session.runInState(SessionState.Operating) {
         withContext(Dispatchers.Main) {
             WebStorage.getInstance().deleteAllData()
         }
