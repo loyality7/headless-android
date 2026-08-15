@@ -123,6 +123,8 @@ internal class OffscreenHost(context: Context) {
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
+        webView.settings.useWideViewPort = true
+        webView.settings.loadWithOverviewMode = true
         // Nothing here should ever reach the filesystem: page content is hostile.
         webView.settings.allowFileAccess = false
         webView.settings.allowContentAccess = false

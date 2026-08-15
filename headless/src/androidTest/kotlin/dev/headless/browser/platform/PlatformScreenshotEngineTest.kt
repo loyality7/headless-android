@@ -40,8 +40,8 @@ class PlatformScreenshotEngineTest {
         session1x1.initialize()
         screenshotEngine1x1 = PlatformScreenshotEngine(session1x1, BrowserConfig())
 
-        // Viewport-sized session
-        val viewport = Viewport(800, 600)
+        // Viewport-sized session with standard platform phone viewport (1080x1920)
+        val viewport = Viewport.Phone
         sessionViewport = PageSession(context, viewport, BrowserConfig())
         sessionViewport.initialize()
         screenshotEngineViewport = PlatformScreenshotEngine(sessionViewport, BrowserConfig())

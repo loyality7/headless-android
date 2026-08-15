@@ -74,7 +74,14 @@ internal class PlatformScreenshotEngine(
 
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            hosted.webView.draw(canvas)
+
+            @Suppress("DEPRECATION")
+            val picture = hosted.webView.capturePicture()
+            if (picture != null && picture.width > 0 && picture.height > 0) {
+                picture.draw(canvas)
+            } else {
+                hosted.webView.draw(canvas)
+            }
 
             val compressFormat = when (options.format) {
                 ScreenshotFormat.PNG -> Bitmap.CompressFormat.PNG

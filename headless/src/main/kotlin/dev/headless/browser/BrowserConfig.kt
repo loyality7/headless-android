@@ -81,7 +81,7 @@ public class Viewport(
 
     public companion object {
         /** A common phone viewport, for callers that do not care to pick one. */
-        public val Phone: Viewport = Viewport(412, 915, 2.625f)
+        public val Phone: Viewport = Viewport(1080, 1920, 1.0f)
     }
 }
 
