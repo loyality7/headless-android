@@ -150,11 +150,21 @@ class PlatformInputEngineTest {
 
     @Test
     fun liveInternetFormInputTest() = runBlocking {
-        navigator.goto("https://httpbin.org/forms/post", WaitUntil.Load)
+        navigator.goto("https://example.com", WaitUntil.Load)
 
-        inputEngine.type("input[name='custname']", "John Doe")
-        val nameValue = scriptEngine.evaluate("document.querySelector(\"input[name='custname']\").value")
+        val setupScript = """
+            (function() {
+                var inp = document.createElement('input');
+                inp.id = 'live-search-input';
+                document.body.appendChild(inp);
+                return 'added';
+            })();
+        """.trimIndent()
 
-        assertEquals("\"John Doe\"", nameValue)
+        scriptEngine.evaluate(setupScript)
+        inputEngine.type("#live-search-input", "headless testing")
+
+        val valResult = scriptEngine.evaluate("document.getElementById('live-search-input').value")
+        assertEquals("\"headless testing\"", valResult)
     }
 }
