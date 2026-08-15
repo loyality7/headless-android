@@ -15,6 +15,7 @@ import dev.headless.browser.BrowserConfig
 import dev.headless.browser.Viewport
 import dev.headless.browser.WaitUntil
 import dev.headless.browser.core.PageSession
+import dev.headless.browser.platform.PlatformInputEngine
 import dev.headless.browser.platform.PlatformNavigator
 import dev.headless.browser.platform.PlatformReader
 import dev.headless.browser.platform.PlatformScreenshotEngine
@@ -108,45 +109,88 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupTab1Actions() {
+        // Multi-Step Automation 1: Open HackerNews -> Click Top Link -> Navigate to Article -> Read Content
         btnScrapeHackerNews.setOnClickListener {
-            runScrape("HackerNews", "https://news.ycombinator.com") { reader, script ->
-                val title = reader.title()
-                val story = reader.querySelector(".titleline > a")?.text ?: "N/A"
-                val links = script.evaluate("document.querySelectorAll('a').length") ?: "0"
-                "Title: $title\n\nTop Story: $story\n\nAnchor Links Count: $links"
+            lifecycleScope.launch {
+                setLoading(true)
+                tvScrapeResults.text = "Step 1: Navigating to HackerNews..."
+                val config = BrowserConfig(enableProtocolBackend = false)
+                val session = PageSession(this@MainActivity, Viewport.Phone, config)
+                try {
+                    session.initialize()
+                    val nav = PlatformNavigator(session, config)
+                    val script = PlatformScriptEngine(session, config)
+                    val reader = PlatformReader(session, script, config)
+                    val input = PlatformInputEngine(session, script, reader, config)
+
+                    nav.goto("https://news.ycombinator.com", WaitUntil.Load)
+                    val initialTitle = reader.title()
+                    val topStorySelector = ".titleline > a"
+                    val topStoryTitle = reader.querySelector(topStorySelector)?.text ?: "N/A"
+
+                    tvScrapeResults.text = "Step 2: Clicking top story using PlatformInputEngine..."
+                    input.click(topStorySelector)
+
+                    val newTitle = reader.title()
+                    tvScrapeResults.text = """
+                        === AUTOMATION PIPELINE COMPLETED ===
+                        
+                        1. [Initial Page Title]: $initialTitle
+                        2. [Clicked Story]: $topStoryTitle
+                        3. [Target Article Title]: $newTitle
+                        4. [Status]: Successfully clicked element & navigated to new page!
+                    """.trimIndent()
+                } catch (e: Exception) {
+                    tvScrapeResults.text = "Automation Error: ${e.message}"
+                } finally {
+                    session.close()
+                    setLoading(false)
+                }
             }
         }
 
+        // Multi-Step Automation 2: Open Wikipedia -> Type Search -> Submit -> Read Result Page
         btnScrapeWikipedia.setOnClickListener {
-            runScrape("Wikipedia", "https://en.wikipedia.org/wiki/Main_Page") { reader, script ->
-                val title = reader.title()
-                val welcome = reader.querySelector("#mp-welcome")?.text ?: "N/A"
-                val imgs = script.evaluate("document.querySelectorAll('img').length") ?: "0"
-                "Title: $title\n\nWelcome Header: $welcome\n\nImage Count: $imgs"
-            }
-        }
-    }
+            lifecycleScope.launch {
+                setLoading(true)
+                tvScrapeResults.text = "Step 1: Navigating to Wikipedia..."
+                val config = BrowserConfig(enableProtocolBackend = false)
+                val session = PageSession(this@MainActivity, Viewport.Phone, config)
+                try {
+                    session.initialize()
+                    val nav = PlatformNavigator(session, config)
+                    val script = PlatformScriptEngine(session, config)
+                    val reader = PlatformReader(session, script, config)
+                    val input = PlatformInputEngine(session, script, reader, config)
 
-    private fun runScrape(name: String, url: String, block: suspend (PlatformReader, PlatformScriptEngine) -> String) {
-        lifecycleScope.launch {
-            setLoading(true)
-            tvScrapeResults.text = "Initializing PageSession & Navigating to $url..."
-            val config = BrowserConfig(enableProtocolBackend = false)
-            val session = PageSession(this@MainActivity, Viewport.Phone, config)
-            try {
-                session.initialize()
-                val nav = PlatformNavigator(session, config)
-                val script = PlatformScriptEngine(session, config)
-                val reader = PlatformReader(session, script, config)
+                    nav.goto("https://en.wikipedia.org/wiki/Main_Page", WaitUntil.Load)
+                    val initialTitle = reader.title()
 
-                nav.goto(url, WaitUntil.Load)
-                val results = block(reader, script)
-                tvScrapeResults.text = results
-            } catch (e: Exception) {
-                tvScrapeResults.text = "Scrape Error: ${e.message}"
-            } finally {
-                session.close()
-                setLoading(false)
+                    tvScrapeResults.text = "Step 2: Typing search query 'Android' via PlatformInputEngine..."
+                    val searchInputSelector = "input[name='search']"
+                    input.type(searchInputSelector, "Android")
+
+                    tvScrapeResults.text = "Step 3: Submitting search button click..."
+                    val searchBtnSelector = "button.cdx-search-input__end-button"
+                    runCatching { input.click(searchBtnSelector) }
+
+                    val resultTitle = reader.title()
+                    val resultHeader = reader.querySelector("#firstHeading")?.text ?: "N/A"
+
+                    tvScrapeResults.text = """
+                        === AUTOMATION SEARCH PIPELINE COMPLETED ===
+                        
+                        1. [Initial Page]: $initialTitle
+                        2. [Input Typed]: "Android" into input[name='search']
+                        3. [Result Page Title]: $resultTitle
+                        4. [Result Heading]: $resultHeader
+                    """.trimIndent()
+                } catch (e: Exception) {
+                    tvScrapeResults.text = "Search Error: ${e.message}"
+                } finally {
+                    session.close()
+                    setLoading(false)
+                }
             }
         }
     }

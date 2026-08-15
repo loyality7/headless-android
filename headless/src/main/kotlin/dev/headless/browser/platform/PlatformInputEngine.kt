@@ -11,7 +11,7 @@ import org.json.JSONObject
  * Handles synthetic user interactions (click, type, press, hover, scrollIntoView, selectOption)
  * on the platform backend.
  */
-internal class PlatformInputEngine(
+public class PlatformInputEngine(
     private val session: PageSession,
     private val scriptEngine: PlatformScriptEngine,
     private val reader: PlatformReader,
@@ -23,7 +23,7 @@ internal class PlatformInputEngine(
      *
      * @throws BrowserException [ErrorCode.SELECTOR_NOT_FOUND] if element does not appear before timeout.
      */
-    suspend fun click(
+    public suspend fun click(
         selector: String,
         timeoutMillis: Long = 0,
     ): Unit = session.runInState(SessionState.Operating) {
@@ -58,7 +58,7 @@ internal class PlatformInputEngine(
      *
      * @throws BrowserException [ErrorCode.SELECTOR_NOT_FOUND] if element does not appear before timeout.
      */
-    suspend fun type(
+    public suspend fun type(
         selector: String,
         text: String,
         timeoutMillis: Long = 0,
@@ -92,7 +92,7 @@ internal class PlatformInputEngine(
     /**
      * Presses [key] on element matching [selector].
      */
-    suspend fun press(
+    public suspend fun press(
         selector: String,
         key: String,
         timeoutMillis: Long = 0,
@@ -120,7 +120,7 @@ internal class PlatformInputEngine(
     /**
      * Hovers over element matching [selector].
      */
-    suspend fun hover(
+    public suspend fun hover(
         selector: String,
         timeoutMillis: Long = 0,
     ): Unit = session.runInState(SessionState.Operating) {
@@ -144,7 +144,7 @@ internal class PlatformInputEngine(
     /**
      * Scrolls element matching [selector] into view.
      */
-    suspend fun scrollIntoView(
+    public suspend fun scrollIntoView(
         selector: String,
         timeoutMillis: Long = 0,
     ): Unit = session.runInState(SessionState.Operating) {
@@ -166,7 +166,7 @@ internal class PlatformInputEngine(
     /**
      * Selects [value] on element matching [selector].
      */
-    suspend fun selectOption(
+    public suspend fun selectOption(
         selector: String,
         value: String,
         timeoutMillis: Long = 0,
