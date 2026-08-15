@@ -55,6 +55,7 @@ internal class PageSession(
     private val host = OffscreenHost(context)
     private val stateRef = AtomicReference(SessionState.Acquired)
     private val isClosed = AtomicBoolean(false)
+    private val capabilityProbe = dev.headless.browser.protocol.ProtocolCapabilityProbe(context, config)
 
     /**
      * Coroutine scope owned by this session.
@@ -79,6 +80,14 @@ internal class PageSession(
 
     val state: SessionState
         get() = stateRef.get()
+
+    /**
+     * Probes and returns actual capabilities for this session.
+     */
+    suspend fun capabilities(): dev.headless.browser.Capabilities {
+        checkNotClosed()
+        return capabilityProbe.probeCapabilities(viewport)
+    }
 
     /**
      * Initializes the session on the main thread and creates the underlying WebView.
