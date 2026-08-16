@@ -82,16 +82,14 @@ public class PlatformNavigator internal constructor(
         // load event and report settled = true, which returned a page that had
         // not finished building and said it had.
         val startNano = System.nanoTime()
-        var settled: Boolean
-        try {
-            settled = withTimeout(effectiveTimeout) {
-                client.awaitSignal()
-                true
-            }
+        val signalResult = kotlinx.coroutines.withTimeoutOrNull(effectiveTimeout) {
+            client.awaitSignal()
+            true
+        }
+        var settled = signalResult == true
+        if (settled) {
             session.recordNavigation()
-        } catch (e: TimeoutCancellationException) {
-            // Timeout returns what exists, flagged as not settled (settled = false),
-            // rather than throwing away partial content!
+        } else {
             return@runInState NavigationResult(
                 url = client.currentUrl.ifEmpty { url },
                 status = client.lastHttpStatus,

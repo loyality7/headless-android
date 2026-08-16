@@ -55,7 +55,8 @@ class SessionLeakAcceptanceDeviceTest {
         // be queued when the loop finishes.
         kotlinx.coroutines.delay(500)
         System.gc()
-        kotlinx.coroutines.delay(100)
+        Runtime.getRuntime().gc()
+        kotlinx.coroutines.delay(200)
 
         assertEquals(
             "every one of the hundred sessions must have been released",
@@ -67,13 +68,36 @@ class SessionLeakAcceptanceDeviceTest {
         android.os.Debug.getMemoryInfo(finalMemoryInfo)
         val finalPssKb = finalMemoryInfo.totalPss
         val pssGrowthKb = finalPssKb - baselinePssKb
+        val perCycleGrowthKb = pssGrowthKb.toDouble() / 100.0
+
+        android.util.Log.i(
+            "SessionLeakAcceptanceDeviceTest",
+            "100-cycle session run memory metrics: baselinePss=${baselinePssKb}KB, finalPss=${finalPssKb}KB, totalGrowth=${pssGrowthKb}KB, perCycleGrowth=${perCycleGrowthKb}KB",
+        )
 
         // Assert memory growth stays under 20MB across 100 sequential session cycles
         val maxAllowedGrowthKb = 20 * 1024
         org.junit.Assert.assertTrue(
             "Resident memory growth across 100 sessions ($pssGrowthKb KB) must remain under budget ceiling ($maxAllowedGrowthKb KB)",
-            pssGrowthKb < maxAllowedGrowthKb
+            pssGrowthKb < maxAllowedGrowthKb,
         )
+    }
+
+    @Test
+    fun aLeakedSessionIsReflectedInRegistryActiveSessions() = runBlocking {
+        val registry = SessionRegistry()
+        val session = PageSession(
+            context = context,
+            viewport = null,
+            config = BrowserConfig(),
+            registry = registry,
+        )
+        session.initialize()
+        assertEquals("active sessions count must equal 1 when session is opened", 1, registry.activeSessions)
+
+        // Clean up
+        session.close()
+        assertEquals("active sessions count must return to 0 when session is closed", 0, registry.activeSessions)
     }
 
     @Test

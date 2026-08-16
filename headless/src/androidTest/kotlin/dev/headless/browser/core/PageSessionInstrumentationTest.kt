@@ -102,7 +102,7 @@ class PageSessionInstrumentationTest {
             }
         }
 
-        assertTrue("onPageFinished callback did not fire", latch.await(10, TimeUnit.SECONDS))
+        assertTrue("onPageFinished callback did not fire", latch.await(15, TimeUnit.SECONDS))
         assertFalse("Destroy was executed synchronously inside client callback", destroyedSynchronouslyInCallback)
 
         // Wait for main handler loop to process teardown

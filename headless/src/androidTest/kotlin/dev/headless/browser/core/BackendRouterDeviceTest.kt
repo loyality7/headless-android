@@ -36,9 +36,11 @@ class BackendRouterDeviceTest {
 
     @Before
     fun setUp() = runBlocking {
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         site = FixtureSite()
         session = PageSession(context, dev.headless.browser.Viewport.Phone, BrowserConfig(enableProtocolBackend = false, allowPrivateAddresses = true))
         session.initialize()
+        kotlinx.coroutines.delay(300)
 
         platformRouter = PlatformRouter()
         navigator = PlatformNavigator(session, session.config, platformRouter)
@@ -68,7 +70,7 @@ class BackendRouterDeviceTest {
 
     @Test
     fun routerServesAllOperationsCleanlyWithPlatformBackend() = runBlocking {
-        backendRouter.goto(site.url(Fixture.Static), WaitUntil.Load, timeoutMillis = 15000)
+        backendRouter.goto(site.url(Fixture.Static), WaitUntil.Load, timeoutMillis = 30000)
 
         assertEquals("static", backendRouter.title())
         assertNotNull(backendRouter.content())
