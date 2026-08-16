@@ -66,12 +66,15 @@ public class PlatformScriptEngine(
      *   the [WebViewFeature.DOCUMENT_START_SCRIPT] feature.
      */
     @android.annotation.SuppressLint("RequiresFeature")
-    public suspend fun addInitScript(script: String): Unit = session.runInState(SessionState.Operating) {
+    public suspend fun addInitScript(
+        script: String,
+        allowedOrigins: Set<String> = setOf("*"),
+    ): Unit = session.runInState(SessionState.Operating) {
         dev.headless.browser.core.CapabilityGuard.requireDocumentStartScript(session.capabilities())
 
         val hosted = session.hostedWebView
         withContext(Dispatchers.Main) {
-            WebViewCompat.addDocumentStartJavaScript(hosted.webView, script, setOf("*"))
+            WebViewCompat.addDocumentStartJavaScript(hosted.webView, script, allowedOrigins)
         }
     }
 

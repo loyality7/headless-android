@@ -91,7 +91,10 @@ public interface Page {
      * @throws BrowserException [ErrorCode.UNSUPPORTED] where the device's
      *   WebView cannot install one. There is no silent fallback.
      */
-    public suspend fun addInitScript(script: String)
+    public suspend fun addInitScript(
+        script: String,
+        allowedOrigins: Set<String> = setOf("*"),
+    )
 
     /**
      * Exposes a native function to page context, over an origin-scoped channel.

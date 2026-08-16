@@ -157,10 +157,10 @@ public class PageImpl internal constructor(
         return backendRouter.evaluateScript(expression)
     }
 
-    override suspend fun addInitScript(script: String) {
+    override suspend fun addInitScript(script: String, allowedOrigins: Set<String>) {
         val caps = capabilities()
         CapabilityGuard.requireDocumentStartScript(caps)
-        platformScriptEngine.addInitScript(script)
+        platformScriptEngine.addInitScript(script, allowedOrigins)
     }
 
     override suspend fun exposeFunction(
