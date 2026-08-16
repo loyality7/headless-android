@@ -6,6 +6,9 @@ name: instrumented
 # emulator run as necessary, never sufficient: the probe's own results come from
 # real hardware.
 on:
+  push:
+    branches: [main, 'fix/**']
+  pull_request:
   workflow_dispatch:
   schedule:
     # Nightly, so a regression surfaces within a day rather than at release.
