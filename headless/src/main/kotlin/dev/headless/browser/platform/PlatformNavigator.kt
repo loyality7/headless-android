@@ -100,8 +100,7 @@ public class PlatformNavigator internal constructor(
         }
 
         if (settled && waitUntil.needsSettleEngine()) {
-            val elapsedMillis = (System.nanoTime() - startNano) / 1_000_000L
-            val remaining = effectiveTimeout - elapsedMillis
+            val remaining = dev.headless.browser.core.MonotonicTimeout.remainingMillis(startNano, effectiveTimeout)
             settled = if (remaining <= 0) {
                 false
             } else {
