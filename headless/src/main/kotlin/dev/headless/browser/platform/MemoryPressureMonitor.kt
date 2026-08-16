@@ -41,13 +41,6 @@ public object MemoryPressureMonitor : ComponentCallbacks2 {
      */
     public fun isCriticalMemory(): Boolean = isCritical.get()
 
-    /**
-     * Simulates critical memory pressure state for testing purposes.
-     */
-    public fun setSimulatedCritical(critical: Boolean) {
-        isCritical.set(critical)
-    }
-
     override fun onTrimMemory(level: Int) {
         when (level) {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,

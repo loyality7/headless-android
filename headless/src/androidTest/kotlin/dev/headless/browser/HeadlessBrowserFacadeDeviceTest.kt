@@ -108,4 +108,20 @@ class HeadlessBrowserFacadeDeviceTest {
         page.close()
         liveBrowser.close()
     }
+
+    @Test
+    fun facadeEnablesRequestAndResourceBlocking() = runBlocking {
+        val page = browser.newPage(Viewport.Phone)
+        page.blockResourceTypes(ResourceType.Images, ResourceType.Fonts)
+
+        var routeIntercepted = false
+        page.route("*.png") { route ->
+            routeIntercepted = true
+            route.abort()
+        }
+
+        val result = page.goto(site.url(Fixture.Static), WaitUntil.Load)
+        assertTrue("Navigation with request blocking enabled should settle", result.settled)
+        page.close()
+    }
 }

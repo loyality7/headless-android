@@ -102,7 +102,7 @@ public interface Page {
      */
     public suspend fun exposeFunction(
         name: String,
-        allowedOrigins: Set<String>,
+        allowedOrigins: Set<String> = setOf("*"),
         handler: suspend (String) -> String?,
     )
 
@@ -118,6 +118,11 @@ public interface Page {
      * protocol at all.
      */
     public suspend fun route(pattern: String, handler: suspend (Route) -> Unit)
+
+    /**
+     * Blocks loading of specific resource categories (e.g. ResourceType.Images, ResourceType.Fonts).
+     */
+    public suspend fun blockResourceTypes(vararg types: ResourceType)
 
     public fun onRequest(listener: (Request) -> Unit)
 

@@ -183,6 +183,10 @@ public class PageImpl internal constructor(
         }
     }
 
+    override suspend fun blockResourceTypes(vararg types: ResourceType) {
+        platformRouter.blockTypes(*types)
+    }
+
     override fun onRequest(listener: (Request) -> Unit) {
         platformRouter.onRequest { urlStr ->
             listener(

@@ -29,7 +29,7 @@ class MemoryPressureDeviceTest {
     @Before
     fun setUp() {
         runBlocking {
-            MemoryPressureMonitor.setSimulatedCritical(false)
+            MemoryPressureMonitor.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
             MemoryPressureMonitor.register(context)
             session = PageSession(context, viewport = null, config = BrowserConfig(), registry = registry)
         }
@@ -38,7 +38,7 @@ class MemoryPressureDeviceTest {
     @After
     fun tearDown() {
         runBlocking {
-            MemoryPressureMonitor.setSimulatedCritical(false)
+            MemoryPressureMonitor.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
             MemoryPressureMonitor.unregister(context)
             runCatching { session.close() }
         }
@@ -49,8 +49,8 @@ class MemoryPressureDeviceTest {
         // Initialize session normally
         session.initialize()
 
-        // Simulate critical memory pressure
-        MemoryPressureMonitor.setSimulatedCritical(true)
+        // Trigger real system TRIM_MEMORY_RUNNING_CRITICAL event
+        MemoryPressureMonitor.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
 
         val initialRefusals = registry.totalMemoryLimitRefusals
 
@@ -62,7 +62,7 @@ class MemoryPressureDeviceTest {
         assertEquals(ErrorCode.MEMORY_LIMIT, ex.code)
         assertTrue("Metric totalMemoryLimitRefusals should increment", registry.totalMemoryLimitRefusals > initialRefusals)
 
-        // Reset memory pressure
-        MemoryPressureMonitor.setSimulatedCritical(false)
+        // Reset memory pressure via TRIM_MEMORY_RUNNING_LOW
+        MemoryPressureMonitor.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
     }
 }
