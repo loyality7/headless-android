@@ -74,14 +74,14 @@ public class PlatformScriptEngine(
         }
     }
 
-    private fun truncateIfNeeded(raw: String?): String? {
-        if (raw == null) return null
-        if (raw.length <= MAX_OUTPUT_CHARS) return raw
-        return raw.substring(0, MAX_OUTPUT_CHARS) + "\n... [truncated ${raw.length - MAX_OUTPUT_CHARS} characters]"
-    }
-
     public companion object {
         /** 1 million characters output cap (~1 MB UTF-16) to prevent OOM. */
         public const val MAX_OUTPUT_CHARS: Int = 1_000_000
+
+        internal fun truncateIfNeeded(raw: String?): String? {
+            if (raw == null) return null
+            if (raw.length <= MAX_OUTPUT_CHARS) return raw
+            return raw.substring(0, MAX_OUTPUT_CHARS) + "\n... [truncated ${raw.length - MAX_OUTPUT_CHARS} characters]"
+        }
     }
 }

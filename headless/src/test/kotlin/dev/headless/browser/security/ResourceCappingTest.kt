@@ -21,14 +21,10 @@ class ResourceCappingTest {
     @Test
     fun truncatesOversizedStringRepresentation() {
         val longString = "A".repeat(1_500_000)
-        val truncated = if (longString.length > PlatformScriptEngine.MAX_OUTPUT_CHARS) {
-            longString.substring(0, PlatformScriptEngine.MAX_OUTPUT_CHARS) +
-                    "\n... [truncated ${longString.length - PlatformScriptEngine.MAX_OUTPUT_CHARS} characters]"
-        } else {
-            longString
-        }
+        val truncated = PlatformScriptEngine.truncateIfNeeded(longString)
 
-        assertTrue(truncated.contains("[truncated 500000 characters]"))
+        org.junit.Assert.assertNotNull(truncated)
+        assertTrue(truncated!!.contains("[truncated 500000 characters]"))
         assertTrue(truncated.length < 1_001_000)
     }
 }
