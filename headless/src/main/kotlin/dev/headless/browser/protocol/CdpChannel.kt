@@ -37,9 +37,12 @@ internal class CdpChannel(
     private val _events = MutableSharedFlow<CdpEvent>(
         replay = 0,
         extraBufferCapacity = 256,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.SUSPEND,
     )
     val events: SharedFlow<CdpEvent> = _events.asSharedFlow()
+    val subscriptionCount: kotlinx.coroutines.flow.StateFlow<Int> = _events.subscriptionCount
+
+    val droppedEventsCount = AtomicLong(0)
 
     @Volatile
     var isClosed: Boolean = false
@@ -114,7 +117,10 @@ internal class CdpChannel(
         } else if (json.has("method")) {
             val method = json.optString("method")
             val params = json.optJSONObject("params") ?: JSONObject()
-            _events.tryEmit(CdpEvent(method, params))
+            val emitted = _events.tryEmit(CdpEvent(method, params))
+            if (!emitted) {
+                droppedEventsCount.incrementAndGet()
+            }
         }
     }
 

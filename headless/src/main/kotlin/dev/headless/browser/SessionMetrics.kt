@@ -19,4 +19,6 @@ public data class SessionMetrics(
     val memoryPressureEvents: Int,
     /** Total renderer crashes or OOM terminations survived. */
     val rendererCrashes: Int,
+    /** Total CDP events dropped due to backpressure overflow. */
+    val droppedCdpEvents: Long = 0L,
 )

@@ -4,6 +4,7 @@ import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
@@ -119,5 +120,69 @@ class CdpChannelTest {
         assertTrue("Exception should be BrowserException", ex is BrowserException)
         assertEquals(ErrorCode.CANCELLED, (ex as BrowserException).code)
         assertTrue(channel.isClosed)
+    }
+
+    @Test(timeout = 10_000)
+    fun droppedEventsAreCountedWhenSubscriberFallsBehind() = runBlocking {
+        val clientOut = PipedOutputStream()
+        val serverIn = PipedInputStream(clientOut, 65536)
+        val serverOut = PipedOutputStream()
+        val clientIn = PipedInputStream(serverOut, 65536)
+
+        val client = WebSocketClient(clientIn, clientOut)
+        val serverThread = Thread {
+            val buffer = ByteArray(1024)
+            val bytes = serverIn.read(buffer)
+            val reqStr = String(buffer, 0, bytes)
+            val clientKeyLine = reqStr.lines().first { it.startsWith("Sec-WebSocket-Key:") }
+            val clientKey = clientKeyLine.split(":")[1].trim()
+            val acceptKey = WebSocketClient.computeAcceptKey(clientKey)
+
+            val handshakeResp = "HTTP/1.1 101 Switching Protocols\r\n" +
+                "Upgrade: websocket\r\n" +
+                "Connection: Upgrade\r\n" +
+                "Sec-WebSocket-Accept: $acceptKey\r\n\r\n"
+            serverOut.write(handshakeResp.toByteArray())
+            serverOut.flush()
+
+            // Wait for client to subscribe to events
+            Thread.sleep(100)
+
+            // Emit 300 event frames (buffer capacity is 256)
+            for (i in 1..300) {
+                val eventJson = """{"method": "Page.frameNavigated", "params": {"id": $i}}"""
+                val frame = byteArrayOf(0x81.toByte(), eventJson.length.toByte()) + eventJson.toByteArray()
+                serverOut.write(frame)
+            }
+            serverOut.flush()
+        }
+
+        val connectJob = async(kotlinx.coroutines.Dispatchers.IO) {
+            client.connect()
+        }
+        serverThread.start()
+        connectJob.await()
+
+        val channel = CdpChannel(client)
+
+        val subJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            channel.events.collect {
+                kotlinx.coroutines.delay(100_000)
+            }
+        }
+
+        while (channel.subscriptionCount.value == 0) {
+            Thread.sleep(10)
+        }
+
+        // Give worker thread time to process all 300 frames
+        Thread.sleep(500)
+
+        // Events emitted exceeding 256 extraBufferCapacity will overflow tryEmit
+        val dropped = channel.droppedEventsCount.get()
+        assertTrue("Dropped CDP events count should be > 0 (actual: $dropped)", dropped > 0)
+
+        subJob.cancel()
+        channel.close()
     }
 }

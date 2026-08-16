@@ -94,6 +94,8 @@ public class PageSession(
     internal val requestActivity: dev.headless.browser.platform.RequestActivityTracker =
         dev.headless.browser.platform.RequestActivityTracker()
 
+    internal val activeCdpChannel: AtomicReference<dev.headless.browser.protocol.CdpChannel?> = AtomicReference(null)
+
     /**
      * Returns snapshot of locally recorded session metrics.
      */
@@ -107,6 +109,7 @@ public class PageSession(
             blockedBytes = blockedBytesCount.get(),
             memoryPressureEvents = registry.totalMemoryLimitRefusals,
             rendererCrashes = registry.totalRendererCrashes + registry.totalRendererOoms,
+            droppedCdpEvents = activeCdpChannel.get()?.droppedEventsCount?.get() ?: 0L,
         )
     }
 
