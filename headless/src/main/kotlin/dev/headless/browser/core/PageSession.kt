@@ -47,7 +47,7 @@ public enum class SessionState {
  * - Main thread operations are marshalled cleanly to the Looper.Main.
  */
 public class PageSession(
-    context: Context,
+    public val context: Context,
     public val viewport: Viewport?,
     public val config: BrowserConfig,
     private val parentJob: Job? = null,
@@ -152,6 +152,11 @@ public class PageSession(
      */
     public suspend fun initialize(): HostedWebView {
         checkNotClosed()
+        dev.headless.browser.platform.MemoryPressureMonitor.register(context)
+        if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
+            registry.recordMemoryLimitRefusal()
+            throw browserError(ErrorCode.MEMORY_LIMIT, "Operation refused due to critical memory pressure")
+        }
         return runCatchingOnMain {
             checkNotClosed()
             checkState(SessionState.Acquired, SessionState.Initialized)
@@ -274,6 +279,10 @@ public class PageSession(
      */
     public suspend fun <T> runInState(targetState: SessionState, block: suspend CoroutineScope.() -> T): T {
         checkNotClosed()
+        if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
+            registry.recordMemoryLimitRefusal()
+            throw browserError(ErrorCode.MEMORY_LIMIT, "Operation refused due to critical memory pressure")
+        }
         val previousState = stateRef.get()
         if (previousState == SessionState.Closed) {
             throw browserError(ErrorCode.DETACHED, "session is closed")
