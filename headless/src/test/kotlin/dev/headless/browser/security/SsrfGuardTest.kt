@@ -2,6 +2,7 @@ package dev.headless.browser.security
 
 import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -17,6 +18,7 @@ import java.net.InetAddress
  */
 class SsrfGuardTest {
 
+    /** The synchronous check, as used from the redirect callback. */
     private fun assertBlocked(url: String) {
         val thrown = assertThrows("expected $url to be blocked", BrowserException::class.java) {
             SsrfGuard.validateUri(url)
@@ -24,13 +26,45 @@ class SsrfGuardTest {
         assertEquals(ErrorCode.SSRF_BLOCKED, thrown.code)
     }
 
+    /** The resolving check, as used before a navigation starts. */
+    private fun assertBlockedResolving(url: String) {
+        val thrown = assertThrows("expected $url to be blocked", BrowserException::class.java) {
+            runBlocking { SsrfGuard.validateUriResolving(url) }
+        }
+        assertEquals(ErrorCode.SSRF_BLOCKED, thrown.code)
+    }
+
     @Test
-    fun `loopback is blocked with the default configuration`() {
+    fun `loopback literals are blocked with the default configuration`() {
         // The defect this test exists for: loopback used to be permitted in
         // production because a mutable global defaulted to allowing it.
         assertBlocked("http://127.0.0.1/admin")
         assertBlocked("http://127.0.0.1:8080/")
-        assertBlocked("http://localhost/config")
+    }
+
+    @Test
+    fun `a loopback hostname is blocked once resolved`() {
+        // `localhost` is a name, so only the resolving check can judge it. The
+        // synchronous variant runs on the main thread from the redirect callback
+        // and must never perform a lookup there.
+        assertBlockedResolving("http://localhost/config")
+    }
+
+    @Test
+    fun `the synchronous check judges literals but defers on unknown names`() {
+        // Deliberate split. A name it has never resolved is allowed through here
+        // so that navigation can validate it properly off the main thread; the
+        // alternative is a name lookup on the main thread, which throws.
+        assertBlocked("http://10.0.0.1/secret")
+        SsrfGuard.validateUri("http://a-host-never-resolved.invalid/")
+    }
+
+    @Test
+    fun `a name that resolved to a forbidden address is remembered`() {
+        // After navigation has resolved it once, the redirect callback can judge
+        // it synchronously.
+        assertBlockedResolving("http://localhost/first")
+        assertBlocked("http://localhost/redirected-here")
     }
 
     @Test
@@ -78,7 +112,7 @@ class SsrfGuardTest {
 
     @Test
     fun `a host that cannot be resolved is refused`() {
-        assertBlocked("http://this-host-does-not-exist.invalid/")
+        assertBlockedResolving("http://this-host-does-not-exist.invalid/")
     }
 
     @Test

@@ -101,9 +101,18 @@ public class PlatformNavigator internal constructor(
         )
     }
 
-    private fun checkUrlAllowed(url: String) {
+    /**
+     * Validates the destination before loading it, resolving the host off the
+     * main thread.
+     *
+     * Resolution must not happen on the dispatcher this runs under: a name
+     * lookup on the main thread throws `NetworkOnMainThreadException`, and the
+     * previous implementation caught that and continued, so no hostname was
+     * ever actually validated on a device.
+     */
+    private suspend fun checkUrlAllowed(url: String) {
         try {
-            dev.headless.browser.security.SsrfGuard.validateUri(url, config.allowPrivateAddresses)
+            dev.headless.browser.security.SsrfGuard.validateUriResolving(url, config.allowPrivateAddresses)
         } catch (e: BrowserException) {
             if (e.code == ErrorCode.SSRF_BLOCKED) {
                 PageSession.recordSsrfBlocked()
@@ -158,6 +167,9 @@ public class PlatformNavigator internal constructor(
             val targetUrl = request?.url?.toString() ?: ""
             if (targetUrl.isNotEmpty()) {
                 try {
+                    // Synchronous callback on the main thread, so this is the
+                    // non-resolving check: literal addresses are judged outright,
+                    // and a hostname against what navigation already resolved.
                     dev.headless.browser.security.SsrfGuard.validateUri(targetUrl, config.allowPrivateAddresses)
                 } catch (e: BrowserException) {
                     if (e.code == ErrorCode.SSRF_BLOCKED) {

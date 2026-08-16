@@ -1,8 +1,6 @@
 package dev.headless.browser.protocol
 
 import android.content.Context
-import android.net.LocalSocket
-import android.net.LocalSocketAddress
 import android.os.Build
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -70,18 +68,18 @@ internal class ProtocolCapabilityProbe(
         )
     }
 
-    private fun probeProtocolSocketReachability(): Boolean {
-        return try {
-            val socketName = "webview_devtools_remote"
-            val socket = LocalSocket()
-            socket.soTimeout = 1000
-            socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
-            socket.close()
-            true
-        } catch (_: Throwable) {
-            false
-        }
-    }
+    /**
+     * Whether the control endpoint answers on this device.
+     *
+     * Delegates to the same candidate list discovery uses. This probe used to
+     * try only the bare `webview_devtools_remote` name, which does not connect
+     * on Android 14 — so it reported the protocol backend as absent on hardware
+     * where the endpoint was reachable and the CDP tests passed against it.
+     * Every routing decision consults this result, so the whole protocol backend
+     * was unreachable at runtime because of the missing pid suffix.
+     */
+    private fun probeProtocolSocketReachability(): Boolean =
+        ProtocolTargetDiscovery.isEndpointReachable()
 
     private data class FeatureProbeResult(
         val protocolBackend: Boolean,

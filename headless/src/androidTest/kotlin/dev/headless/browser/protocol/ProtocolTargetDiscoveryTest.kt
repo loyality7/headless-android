@@ -77,7 +77,7 @@ class ProtocolTargetDiscoveryTest {
 
     @Test
     fun disabledProtocolBackendRaisesUnsupportedError() = runBlocking {
-        val config = BrowserConfig(enableProtocolBackend = false)
+        val config = BrowserConfig(enableProtocolBackend = false, allowPrivateAddresses = true)
         val session = PageSession(context, Viewport.Phone, config)
         session.initialize()
 
@@ -93,7 +93,7 @@ class ProtocolTargetDiscoveryTest {
 
     @Test
     fun unreachableEndpointFailsFastWithClearDiagnosisAndPlatformBackendContinuesToServe() = runBlocking {
-        val config = BrowserConfig(enableProtocolBackend = true)
+        val config = BrowserConfig(enableProtocolBackend = true, allowPrivateAddresses = true)
         val session = PageSession(context, Viewport.Phone, config)
         session.initialize()
 

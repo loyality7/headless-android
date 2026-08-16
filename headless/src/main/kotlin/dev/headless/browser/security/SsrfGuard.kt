@@ -2,10 +2,13 @@ package dev.headless.browser.security
 
 import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Refuses navigation to addresses a caller-supplied URL should never reach.
@@ -44,23 +47,25 @@ public object SsrfGuard {
      * @throws BrowserException [ErrorCode.SSRF_BLOCKED] for a forbidden address,
      *   an unparseable URL, or a host that does not resolve.
      */
-    public fun validateUri(uri: String, allowPrivateAddresses: Boolean = false) {
+    /**
+     * Resolves [uri] and validates every address it points at.
+     *
+     * Suspending, and resolution runs on [Dispatchers.IO], because name lookup
+     * on the main thread throws `NetworkOnMainThreadException`. The previous
+     * implementation resolved inline from a main-thread dispatcher, caught that
+     * exception, and returned — so on a real device **no hostname was ever
+     * validated**. Only IP literals, which need no lookup, were being checked.
+     *
+     * The result is cached so [validateResolved] can answer synchronously from
+     * the redirect callback, which cannot suspend.
+     */
+    public suspend fun validateUriResolving(uri: String, allowPrivateAddresses: Boolean = false) {
         if (allowPrivateAddresses) return
+        val host = hostToValidate(uri) ?: return
 
-        // Read the scheme off the raw string before parsing. A data URL legally
-        // carries characters that URI rejects — `data:text/html,<h1>x</h1>` is
-        // the obvious one — and it addresses no host, so it must not be failed
-        // by a parser that never needed to see it.
-        if (schemeOf(uri) in HOSTLESS_SCHEMES) return
-
-        val parsed = runCatching { URI(uri) }.getOrNull()
-            ?: throw blocked(uri, "the URL could not be parsed")
-
-        val host = parsed.host
-            ?: throw blocked(uri, "the URL has no host")
-
-        val addresses = runCatching { InetAddress.getAllByName(host) }.getOrNull()
-            ?: throw blocked(uri, "the host could not be resolved")
+        val addresses = withContext(Dispatchers.IO) {
+            runCatching { InetAddress.getAllByName(host) }.getOrNull()
+        } ?: throw blocked(uri, "the host could not be resolved")
 
         if (addresses.isEmpty()) {
             throw blocked(uri, "the host resolved to no addresses")
@@ -68,12 +73,76 @@ public object SsrfGuard {
 
         // Every address the name resolves to must be acceptable. A name that
         // returns one public and one private address is a rebinding attempt.
-        for (address in addresses) {
-            if (isForbiddenAddress(address)) {
-                throw blocked(uri, "resolves to ${address.hostAddress}")
-            }
+        val forbidden = addresses.firstOrNull { isForbiddenAddress(it) }
+        verdictCache[host] = forbidden == null
+
+        if (forbidden != null) {
+            throw blocked(uri, "resolves to ${forbidden.hostAddress}")
         }
     }
+
+    /**
+     * Validates [uri] without performing a name lookup.
+     *
+     * For use from `shouldOverrideUrlLoading`, which is a synchronous main-thread
+     * callback where resolution is not permitted. Literal addresses are checked
+     * outright; a hostname is checked against what [validateUriResolving]
+     * previously resolved, and a host never seen before is allowed through here
+     * so that the navigation itself can validate it properly.
+     */
+    public fun validateUri(uri: String, allowPrivateAddresses: Boolean = false) {
+        if (allowPrivateAddresses) return
+        val host = hostToValidate(uri) ?: return
+
+        // A literal address needs no lookup, so it can always be judged here.
+        val literal = runCatching { parseLiteralAddress(host) }.getOrNull()
+        if (literal != null) {
+            if (isForbiddenAddress(literal)) throw blocked(uri, "resolves to ${literal.hostAddress}")
+            return
+        }
+
+        if (verdictCache[host] == false) {
+            throw blocked(uri, "the host previously resolved to a forbidden address")
+        }
+    }
+
+    /**
+     * The host that must be validated, or null when the URL addresses none.
+     *
+     * @throws BrowserException when the URL is unusable. Failing closed: an
+     *   address we cannot classify is not one we can vouch for.
+     */
+    private fun hostToValidate(uri: String): String? {
+        // Read the scheme off the raw string before parsing. A data URL legally
+        // carries characters that URI rejects — `data:text/html,<h1>x</h1>` is
+        // the obvious one — and it addresses no host, so it must not be failed
+        // by a parser that never needed to see it.
+        if (schemeOf(uri) in HOSTLESS_SCHEMES) return null
+
+        val parsed = runCatching { URI(uri) }.getOrNull()
+            ?: throw blocked(uri, "the URL could not be parsed")
+
+        return parsed.host ?: throw blocked(uri, "the URL has no host")
+    }
+
+    /** An address written literally in the URL, or null when [host] is a name. */
+    private fun parseLiteralAddress(host: String): InetAddress? {
+        val trimmed = host.removeSurrounding("[", "]")
+        val looksNumeric = trimmed.all { it.isDigit() || it == '.' } ||
+            (trimmed.contains(':') && trimmed.all { it.isLetterOrDigit() || it == ':' || it == '.' })
+        if (!looksNumeric) return null
+        // Safe: a literal never triggers a lookup, so this cannot touch the network.
+        return runCatching { InetAddress.getByName(trimmed) }.getOrNull()
+    }
+
+    /**
+     * What each hostname last resolved to, as a verdict.
+     *
+     * Bounded implicitly by how many distinct hosts a session visits. A wrong
+     * entry can only be stale, and a stale allow is re-checked on the next
+     * navigation through [validateUriResolving].
+     */
+    private val verdictCache = ConcurrentHashMap<String, Boolean>()
 
     /**
      * Whether [addr] falls in a range this library refuses to reach.
