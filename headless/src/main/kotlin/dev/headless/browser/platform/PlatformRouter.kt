@@ -2,56 +2,9 @@ package dev.headless.browser.platform
 
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import dev.headless.browser.ResourceType
+import dev.headless.browser.Route
 import java.io.ByteArrayInputStream
-
-public enum class ResourceType {
-    Images,
-    Fonts,
-    Media,
-}
-
-public class Route internal constructor(
-    public val url: String,
-    public val method: String,
-    public val headers: Map<String, String>,
-) {
-    internal var action: Action = Action.Continue
-    internal var syntheticResponse: WebResourceResponse? = null
-
-    public fun abort() {
-        action = Action.Abort
-    }
-
-    public fun fulfill(
-        mimeType: String = "text/plain",
-        encoding: String = "UTF-8",
-        statusCode: Int = 200,
-        reasonPhrase: String = "OK",
-        headers: Map<String, String> = emptyMap(),
-        body: ByteArray = ByteArray(0),
-    ) {
-        action = Action.Fulfill
-        val response = WebResourceResponse(
-            mimeType,
-            encoding,
-            statusCode,
-            reasonPhrase,
-            headers,
-            ByteArrayInputStream(body),
-        )
-        syntheticResponse = response
-    }
-
-    public fun `continue`() {
-        action = Action.Continue
-    }
-
-    internal enum class Action {
-        Abort,
-        Fulfill,
-        Continue,
-    }
-}
 
 /**
  * Handles network request routing, resource blocking (images, fonts, media), and synthetic responses.

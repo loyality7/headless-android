@@ -39,7 +39,7 @@ internal class PlatformChannelEngine(
     suspend fun exposeFunction(
         name: String,
         allowedOrigins: Set<String> = setOf("*"),
-        handler: (String) -> String,
+        handler: suspend (String) -> String?,
     ) = session.runInState(SessionState.Operating) {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             throw browserError(
@@ -80,7 +80,7 @@ internal class PlatformChannelEngine(
         sourceOrigin: Uri,
         allowedOrigins: Set<String>,
         replyProxy: JavaScriptReplyProxy,
-        handler: (String) -> String,
+        handler: suspend (String) -> String?,
     ) {
         val payload = message.data ?: ""
 
@@ -102,13 +102,15 @@ internal class PlatformChannelEngine(
         }
 
         // Process callback safely
-        try {
-            val result = handler(payload)
-            replyProxy.postMessage(result)
-        } catch (e: Exception) {
-            replyProxy.postMessage(
-                "{\"error\":\"HANDLER_EXCEPTION\",\"message\":\"${e.message ?: "Native function execution failed"}\"}"
-            )
+        kotlinx.coroutines.runBlocking {
+            try {
+                val result = handler(payload) ?: ""
+                replyProxy.postMessage(result)
+            } catch (e: Exception) {
+                replyProxy.postMessage(
+                    "{\"error\":\"HANDLER_EXCEPTION\",\"message\":\"${e.message ?: "Native function execution failed"}\"}"
+                )
+            }
         }
     }
 
