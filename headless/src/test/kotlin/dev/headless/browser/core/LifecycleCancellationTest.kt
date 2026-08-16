@@ -27,10 +27,7 @@ class LifecycleCancellationTest {
         delay(50L)
         parentJob.cancel()
 
-        try {
-            job.join()
-        } catch (ex: Throwable) {
-            assertTrue("Should be cancellation", ex is CancellationException)
-        }
+        job.join()
+        assertTrue("Job should be cancelled when parent is cancelled", job.isCancelled)
     }
 }
