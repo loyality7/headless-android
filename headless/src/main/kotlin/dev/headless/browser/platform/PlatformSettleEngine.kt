@@ -123,11 +123,13 @@ internal class PlatformSettleEngine(
     private suspend fun awaitNetworkIdle(quietMillis: Long): Boolean {
         val tracker = session.requestActivity
         while (true) {
-            val quietFor = tracker.quietForMillis()
-            if (quietFor >= quietMillis) return true
+            val quietForMillis: Long = tracker.quietForMillis()
+            if (quietForMillis >= quietMillis) return true
+
             // Sleep only for the remainder of the window, so a request arriving
             // late restarts it rather than being missed.
-            delay((quietMillis - quietFor).coerceAtLeast(POLL_FLOOR_MILLIS))
+            val remainingMillis: Long = quietMillis - quietForMillis
+            delay(maxOf(remainingMillis, POLL_FLOOR_MILLIS))
         }
     }
 
