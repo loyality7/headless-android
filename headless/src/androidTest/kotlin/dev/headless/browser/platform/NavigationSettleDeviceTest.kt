@@ -115,6 +115,42 @@ class NavigationSettleDeviceTest {
     }
 
     @Test
+    fun networkIdleObservesRealRequestsRatherThanSleeping() = runBlocking {
+        // The asset-heavy fixture pulls a stylesheet, four images, a font, a
+        // video and a script. If NetworkIdle were still a fixed sleep it would
+        // return after exactly the quiet period having observed nothing; the
+        // request count is what proves it is reading a real signal.
+        val requestsBefore = session.requestActivity.totalRequests
+        val result = navigator.goto(site.url(Fixture.AssetHeavy), WaitUntil.NetworkIdle(400))
+
+        assertTrue("the page should have settled", result.settled)
+        assertTrue(
+            "the interception callback must have fed the tracker, saw " +
+                "${session.requestActivity.totalRequests} requests",
+            session.requestActivity.totalRequests > requestsBefore,
+        )
+        assertTrue(
+            "settling must not be declared while the page is still requesting",
+            session.requestActivity.isQuietFor(400),
+        )
+    }
+
+    @Test
+    fun eachNavigationGetsAFreshQuietWindow() = runBlocking {
+        navigator.goto(site.url(Fixture.AssetHeavy), WaitUntil.Load)
+        val afterFirst = session.requestActivity.totalRequests
+        assertTrue("the first page should have requested resources", afterFirst > 0)
+
+        navigator.goto(site.url(Fixture.Static), WaitUntil.Load)
+
+        assertTrue(
+            "the counter resets per navigation so one page's activity cannot " +
+                "describe another, saw ${session.requestActivity.totalRequests}",
+            session.requestActivity.totalRequests < afterFirst,
+        )
+    }
+
+    @Test
     fun loadAndDomReadyStillBehaveAsBefore() = runBlocking {
         assertTrue(navigator.goto(site.url(Fixture.Static), WaitUntil.Load).settled)
         assertTrue(navigator.goto(site.url(Fixture.Static), WaitUntil.DomReady).settled)

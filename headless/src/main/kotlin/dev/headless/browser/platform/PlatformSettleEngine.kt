@@ -104,9 +104,31 @@ internal class PlatformSettleEngine(
         }
     }
 
+    /**
+     * Waits until the page stops asking for resources.
+     *
+     * This used to be `delay(quietMillis); return true` — a fixed sleep that
+     * always claimed success, which is the one implementation the specification
+     * rules out. It now reads the interception callback's record of when the
+     * page last requested anything.
+     *
+     * The claim made here is "nothing has been requested for N milliseconds",
+     * not "zero requests are outstanding". The platform gives no per-resource
+     * completion callback, so the stronger claim is not available, and stating
+     * the weaker one honestly beats implying the stronger one.
+     *
+     * Returns only when the window is genuinely quiet; the caller's ceiling,
+     * applied in [settle], decides how long that is worth waiting for.
+     */
     private suspend fun awaitNetworkIdle(quietMillis: Long): Boolean {
-        delay(quietMillis)
-        return true
+        val tracker = session.requestActivity
+        while (true) {
+            val quietFor = tracker.quietForMillis()
+            if (quietFor >= quietMillis) return true
+            // Sleep only for the remainder of the window, so a request arriving
+            // late restarts it rather than being missed.
+            delay((quietMillis - quietFor).coerceAtLeast(POLL_FLOOR_MILLIS))
+        }
     }
 
     private suspend fun awaitCustomPredicate(expression: String): Boolean {
@@ -123,6 +145,11 @@ internal class PlatformSettleEngine(
             }
             delay(pollInterval)
         }
+    }
+
+    private companion object {
+        /** Never spin. A request arriving mid-window restarts it on the next tick. */
+        const val POLL_FLOOR_MILLIS = 50L
     }
 
     private fun isTruthy(result: String?): Boolean {

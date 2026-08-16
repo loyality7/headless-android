@@ -62,6 +62,10 @@ public class PlatformNavigator internal constructor(
         val client = NavigationClient(url, waitUntil)
         val hosted = session.hostedWebView
 
+        // A fresh window per navigation: the previous page's requests must not
+        // make this one look busy, nor its silence make this one look idle.
+        session.requestActivity.reset()
+
         withContext(Dispatchers.Main) {
             hosted.webView.webViewClient = client
             hosted.webView.loadUrl(url)
@@ -188,6 +192,11 @@ public class PlatformNavigator internal constructor(
             view: WebView?,
             request: WebResourceRequest?,
         ): WebResourceResponse? {
+            // The only network signal the platform backend gets, and it arrives
+            // on a background thread for every resource the page asks for. The
+            // settle engine reads it rather than sleeping.
+            session.requestActivity.recordRequest()
+
             val intercepted = router?.interceptRequest(request)
             if (intercepted != null) return intercepted
             return super.shouldInterceptRequest(view, request)

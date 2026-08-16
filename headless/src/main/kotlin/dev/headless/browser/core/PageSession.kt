@@ -73,6 +73,16 @@ public class PageSession(
     public fun recordBlockedBytes(bytes: Long): Unit { blockedBytesCount.addAndGet(bytes) }
 
     /**
+     * When this session's page last requested something over the network.
+     *
+     * Written from the interception callback on a background thread, read by the
+     * settle engine. Per session rather than global, so one page's activity
+     * cannot make another look busy.
+     */
+    internal val requestActivity: dev.headless.browser.platform.RequestActivityTracker =
+        dev.headless.browser.platform.RequestActivityTracker()
+
+    /**
      * Returns snapshot of locally recorded session metrics.
      */
     public fun metrics(): SessionMetrics {
