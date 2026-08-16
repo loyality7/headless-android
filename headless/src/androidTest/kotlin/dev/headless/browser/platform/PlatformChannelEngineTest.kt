@@ -58,7 +58,7 @@ class PlatformChannelEngineTest {
     fun exposeFunctionTransfersMessagesOverWebMessageListener() = runBlocking {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             val ex = assertThrows(BrowserException::class.java) {
-                runBlocking { channelEngine.exposeFunction("echoBridge") { it } }
+                runBlocking { channelEngine.exposeFunction("echoBridge", setOf("*")) { it } }
             }
             assertEquals(ErrorCode.UNSUPPORTED, ex.code)
             return@runBlocking

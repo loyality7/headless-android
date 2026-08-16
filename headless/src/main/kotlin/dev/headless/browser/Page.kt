@@ -93,7 +93,7 @@ public interface Page {
      */
     public suspend fun addInitScript(
         script: String,
-        allowedOrigins: Set<String> = setOf("*"),
+        allowedOrigins: Set<String>,
     )
 
     /**
@@ -105,7 +105,7 @@ public interface Page {
      */
     public suspend fun exposeFunction(
         name: String,
-        allowedOrigins: Set<String> = setOf("*"),
+        allowedOrigins: Set<String>,
         handler: suspend (String) -> String?,
     )
 

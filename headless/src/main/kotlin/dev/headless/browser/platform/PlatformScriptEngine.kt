@@ -64,7 +64,7 @@ public class PlatformScriptEngine(
     @android.annotation.SuppressLint("RequiresFeature")
     public suspend fun addInitScript(
         script: String,
-        allowedOrigins: Set<String> = setOf("*"),
+        allowedOrigins: Set<String>,
     ): Unit = session.runInState(SessionState.Operating) {
         dev.headless.browser.core.CapabilityGuard.requireDocumentStartScript(session.capabilities())
 

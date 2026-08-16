@@ -38,7 +38,7 @@ internal class PlatformChannelEngine(
     @android.annotation.SuppressLint("RequiresFeature")
     suspend fun exposeFunction(
         name: String,
-        allowedOrigins: Set<String> = setOf("*"),
+        allowedOrigins: Set<String>,
         handler: suspend (String) -> String?,
     ) = session.runInState(SessionState.Operating) {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
