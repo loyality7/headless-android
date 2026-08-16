@@ -28,6 +28,17 @@ class SessionLeakAcceptanceDeviceTest {
     fun hundredSequentialSessionsReturnToBaselineMemory() = runBlocking {
         val registry = SessionRegistry()
 
+        // Warmup session to initialize WebView native runtime overhead
+        val warmup = PageSession(context, Viewport(360, 640), BrowserConfig(allowPrivateAddresses = true), registry = registry)
+        warmup.initialize()
+        warmup.close()
+        kotlinx.coroutines.delay(200)
+        System.gc()
+
+        val baselineMemoryInfo = android.os.Debug.MemoryInfo()
+        android.os.Debug.getMemoryInfo(baselineMemoryInfo)
+        val baselinePssKb = baselineMemoryInfo.totalPss
+
         for (i in 1..100) {
             val session = PageSession(
                 context = context,
@@ -42,13 +53,26 @@ class SessionLeakAcceptanceDeviceTest {
 
         // Teardown is posted to the main looper, so the last few closes may still
         // be queued when the loop finishes.
-        kotlinx.coroutines.delay(300)
+        kotlinx.coroutines.delay(500)
         System.gc()
+        kotlinx.coroutines.delay(100)
 
         assertEquals(
             "every one of the hundred sessions must have been released",
             0,
             registry.activeSessions,
+        )
+
+        val finalMemoryInfo = android.os.Debug.MemoryInfo()
+        android.os.Debug.getMemoryInfo(finalMemoryInfo)
+        val finalPssKb = finalMemoryInfo.totalPss
+        val pssGrowthKb = finalPssKb - baselinePssKb
+
+        // Assert memory growth stays under 20MB across 100 sequential session cycles
+        val maxAllowedGrowthKb = 20 * 1024
+        org.junit.Assert.assertTrue(
+            "Resident memory growth across 100 sessions ($pssGrowthKb KB) must remain under budget ceiling ($maxAllowedGrowthKb KB)",
+            pssGrowthKb < maxAllowedGrowthKb
         )
     }
 
