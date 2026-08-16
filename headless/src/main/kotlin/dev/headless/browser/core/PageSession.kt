@@ -51,6 +51,14 @@ public class PageSession(
     public val viewport: Viewport?,
     public val config: BrowserConfig,
     private val parentJob: Job? = null,
+    /**
+     * Where this session's counters are kept.
+     *
+     * Its own by default, so no session is counted alongside one it knows
+     * nothing about. Pass a shared registry to aggregate several sessions —
+     * which is what a browser holding a pool of them would do.
+     */
+    public val registry: SessionRegistry = SessionRegistry(),
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val host = OffscreenHost(context)
@@ -93,8 +101,8 @@ public class PageSession(
             totalJsEvaluations = jsEvalCount.get(),
             totalJsExecutionTimeMs = jsExecutionTimeMs.get(),
             blockedBytes = blockedBytesCount.get(),
-            memoryPressureEvents = memoryLimitRefusalCount.get(),
-            rendererCrashes = rendererCrashCount.get() + rendererOomCount.get(),
+            memoryPressureEvents = registry.totalMemoryLimitRefusals,
+            rendererCrashes = registry.totalRendererCrashes + registry.totalRendererOoms,
         )
     }
 
@@ -176,7 +184,7 @@ public class PageSession(
                 } catch (_: Throwable) {}
             }
             _hostedWebView = hosted
-            activeSessionCount.incrementAndGet()
+            registry.sessionOpened()
             hosted
         }
     }
@@ -188,18 +196,14 @@ public class PageSession(
      * @return true to tell Android the app handled the renderer termination.
      */
     public fun handleRendererDeath(didCrash: Boolean): Boolean {
-        if (didCrash) {
-            rendererCrashCount.incrementAndGet()
-        } else {
-            rendererOomCount.incrementAndGet()
-        }
+        registry.recordRendererDeath(didCrash)
 
         isRendererDead.set(true)
         val hosted = _hostedWebView
         _hostedWebView = null
         if (hosted != null) {
             hosted.destroyed = true
-            activeSessionCount.decrementAndGet()
+            registry.sessionClosed()
         }
 
         stateRef.set(SessionState.Closed)
@@ -248,7 +252,7 @@ public class PageSession(
             isRendererDead.set(false)
             isClosed.set(false)
             stateRef.set(SessionState.Initialized)
-            activeSessionCount.incrementAndGet()
+            registry.sessionOpened()
             hosted
         }
     }
@@ -298,7 +302,7 @@ public class PageSession(
             throw browserError(ErrorCode.DETACHED, "session is closed")
         }
         if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
-            memoryLimitRefusalCount.incrementAndGet()
+            registry.recordMemoryLimitRefusal()
             throw browserError(ErrorCode.MEMORY_LIMIT, "Refused operation due to critical memory pressure")
         }
     }
@@ -348,7 +352,7 @@ public class PageSession(
         val hosted = _hostedWebView
         _hostedWebView = null
         if (hosted != null) {
-            activeSessionCount.decrementAndGet()
+            registry.sessionClosed()
             host.destroy(hosted)
         }
     }
@@ -375,49 +379,11 @@ public class PageSession(
         }
     }
 
-    public companion object {
-        private val activeSessionCount = java.util.concurrent.atomic.AtomicInteger(0)
-        private val rendererCrashCount = java.util.concurrent.atomic.AtomicInteger(0)
-        private val rendererOomCount = java.util.concurrent.atomic.AtomicInteger(0)
-        private val memoryLimitRefusalCount = java.util.concurrent.atomic.AtomicInteger(0)
-
-        /**
-         * Returns the current number of active initialized sessions.
-         */
-        public val activeSessions: Int
-            get() = activeSessionCount.get()
-
-        private val ssrfBlockedCount = java.util.concurrent.atomic.AtomicInteger(0)
-
-        /**
-         * Total number of renderer process crashes survived since process start.
-         */
-        public val totalRendererCrashes: Int
-            get() = rendererCrashCount.get()
-
-        /**
-         * Total number of renderer process OOM kills survived since process start.
-         */
-        public val totalRendererOoms: Int
-            get() = rendererOomCount.get()
-
-        /**
-         * Total number of operations refused due to critical memory pressure.
-         */
-        public val totalMemoryLimitRefusals: Int
-            get() = memoryLimitRefusalCount.get()
-
-        /**
-         * Total number of navigations or redirects blocked by SSRF rules.
-         */
-        public val totalSsrfBlocked: Int
-            get() = ssrfBlockedCount.get()
-
-        /**
-         * Records an SSRF blockage event.
-         */
-        public fun recordSsrfBlocked(): Unit {
-            ssrfBlockedCount.incrementAndGet()
-        }
-    }
+    /**
+     * Records a navigation this session refused under the SSRF rules.
+     *
+     * An instance method rather than a static one: the count belongs to whoever
+     * owns the session, not to the process.
+     */
+    public fun recordSsrfBlocked(): Unit = registry.recordSsrfBlocked()
 }

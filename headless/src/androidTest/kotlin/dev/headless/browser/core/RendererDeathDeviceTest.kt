@@ -23,17 +23,20 @@ class RendererDeathDeviceTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    /** Counters owned by this test, so another class's sessions cannot be read here. */
+    private val registry = SessionRegistry()
+
     @Test
     fun forcedRendererCrashIsSurvivedAndReportedAsTargetCrashed() = runBlocking {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             return@runBlocking // onRenderProcessGone requires API 26+
         }
 
-        val initialCrashes = PageSession.totalRendererCrashes
-        val initialSessions = PageSession.activeSessions
+        val initialCrashes = registry.totalRendererCrashes
+        val initialSessions = registry.activeSessions
         val goneSignal = CompletableDeferred<Boolean>()
 
-        val session = PageSession(context, viewport = null, config = BrowserConfig(enableProtocolBackend = false))
+        val session = PageSession(context, viewport = null, config = BrowserConfig(enableProtocolBackend = false), registry = registry)
         val hosted = session.initialize()
 
         // Attach custom WebViewClient to capture gone signal
@@ -51,7 +54,7 @@ class RendererDeathDeviceTest {
             }
         }
 
-        assertEquals(initialSessions + 1, PageSession.activeSessions)
+        assertEquals(initialSessions + 1, registry.activeSessions)
 
         // Trigger renderer death signal on main thread
         withContext(Dispatchers.Main) {
@@ -64,8 +67,8 @@ class RendererDeathDeviceTest {
         assertTrue("Renderer death signal should be handled", didCrash == true)
 
         // Verify session was discarded and metrics updated
-        assertEquals("Active sessions should drop back to initial baseline", initialSessions, PageSession.activeSessions)
-        assertTrue("Total renderer crash metric should increment", PageSession.totalRendererCrashes > initialCrashes)
+        assertEquals("Active sessions should drop back to initial baseline", initialSessions, registry.activeSessions)
+        assertTrue("Total renderer crash metric should increment", registry.totalRendererCrashes > initialCrashes)
 
         // Verify subsequent call on closed/crashed session throws TARGET_CRASHED
         try {
@@ -83,7 +86,7 @@ class RendererDeathDeviceTest {
             return@runBlocking
         }
 
-        val session = PageSession(context, viewport = null, config = BrowserConfig(enableProtocolBackend = false))
+        val session = PageSession(context, viewport = null, config = BrowserConfig(enableProtocolBackend = false), registry = registry)
         session.initialize()
 
         withContext(Dispatchers.Main) {

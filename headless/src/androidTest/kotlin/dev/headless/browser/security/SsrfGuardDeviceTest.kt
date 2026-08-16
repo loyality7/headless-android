@@ -8,6 +8,7 @@ import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
 import dev.headless.browser.WaitUntil
 import dev.headless.browser.core.PageSession
+import dev.headless.browser.core.SessionRegistry
 import dev.headless.browser.platform.PlatformNavigator
 import dev.headless.fixtures.Fixture
 import dev.headless.fixtures.FixtureSite
@@ -30,10 +31,13 @@ class SsrfGuardDeviceTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    /** Counters owned by this test, so another class's sessions cannot be read here. */
+    private val registry = SessionRegistry()
+
     @Test
     fun navigatingToAPrivateAddressIsRefusedAndCounted() = runBlocking {
-        val before = PageSession.totalSsrfBlocked
-        val session = PageSession(context, viewport = null, config = BrowserConfig())
+        val before = registry.totalSsrfBlocked
+        val session = PageSession(context, viewport = null, config = BrowserConfig(), registry = registry)
         session.initialize()
 
         try {
@@ -46,7 +50,7 @@ class SsrfGuardDeviceTest {
             assertEquals(ErrorCode.SSRF_BLOCKED, thrown.code)
             assertTrue(
                 "the guard must count what it refused, without the test doing it",
-                PageSession.totalSsrfBlocked > before,
+                registry.totalSsrfBlocked > before,
             )
         } finally {
             session.close()
@@ -56,7 +60,7 @@ class SsrfGuardDeviceTest {
     @Test
     fun theFixtureSiteIsReachableOnlyWithExplicitOptIn() = runBlocking {
         FixtureSite(host = "127.0.0.1").use { site ->
-            val refused = PageSession(context, viewport = null, config = BrowserConfig())
+            val refused = PageSession(context, viewport = null, config = BrowserConfig(), registry = registry)
             refused.initialize()
             try {
                 val navigator = PlatformNavigator(refused, refused.config)

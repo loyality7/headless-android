@@ -11,6 +11,7 @@ import dev.headless.browser.BrowserConfig
 import dev.headless.browser.Viewport
 import dev.headless.browser.WaitUntil
 import dev.headless.browser.core.PageSession
+import dev.headless.browser.core.SessionRegistry
 import dev.headless.browser.platform.PlatformNavigator
 import dev.headless.browser.platform.PlatformScriptEngine
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,9 @@ public class TelemetryDashboardActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var btnRefreshTelemetry: Button
     private lateinit var tvTelemetryDashboard: TextView
+
+    /** Totals for the sessions this screen has opened, kept across probes. */
+    private val registry = SessionRegistry()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,12 +37,17 @@ public class TelemetryDashboardActivity : AppCompatActivity() {
         btnRefreshTelemetry = findViewById(R.id.btnRefreshTelemetry)
         tvTelemetryDashboard = findViewById(R.id.tvTelemetryDashboard)
 
+        // Kept across probes so the dashboard accumulates rather than resetting
+        // on every press.
+
         btnRefreshTelemetry.setOnClickListener {
             lifecycleScope.launch(Dispatchers.Main) {
                 progressBar.visibility = android.view.View.VISIBLE
                 tvTelemetryDashboard.text = "Running diagnostic session probe..."
                 val config = BrowserConfig(enableProtocolBackend = false)
-                val session = PageSession(this@TelemetryDashboardActivity, Viewport.Phone, config)
+                // One registry held by this screen, so the totals below describe
+                // the sessions it has opened rather than everything in the process.
+                val session = PageSession(this@TelemetryDashboardActivity, Viewport.Phone, config, registry = registry)
                 try {
                     session.initialize()
                     val nav = PlatformNavigator(session, config)
@@ -48,11 +57,11 @@ public class TelemetryDashboardActivity : AppCompatActivity() {
                     script.evaluate("console.log('probe')")
 
                     val metrics = session.metrics()
-                    val activeCount = PageSession.activeSessions
-                    val crashes = PageSession.totalRendererCrashes
-                    val ooms = PageSession.totalRendererOoms
-                    val ssrf = PageSession.totalSsrfBlocked
-                    val refusals = PageSession.totalMemoryLimitRefusals
+                    val activeCount = registry.activeSessions
+                    val crashes = registry.totalRendererCrashes
+                    val ooms = registry.totalRendererOoms
+                    val ssrf = registry.totalSsrfBlocked
+                    val refusals = registry.totalMemoryLimitRefusals
 
                     tvTelemetryDashboard.text = """
                         === TELEMETRY METRICS ===

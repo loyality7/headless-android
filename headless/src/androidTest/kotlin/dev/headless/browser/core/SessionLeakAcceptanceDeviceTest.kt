@@ -10,6 +10,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * The v1 acceptance gate: a hundred sessions, opened and closed, leaving nothing
+ * behind.
+ *
+ * Counts against a registry this test owns. It previously read a process-wide
+ * counter, so any session another test class left open was attributed here — the
+ * test passed alone and failed in the suite, and the failure could not
+ * distinguish a real leak from another test's residue.
+ */
 @RunWith(AndroidJUnit4::class)
 class SessionLeakAcceptanceDeviceTest {
 
@@ -17,32 +26,51 @@ class SessionLeakAcceptanceDeviceTest {
 
     @Test
     fun hundredSequentialSessionsReturnToBaselineMemory() = runBlocking {
-        // Run 100 sequential creation and destruction cycles
+        val registry = SessionRegistry()
+
         for (i in 1..100) {
             val session = PageSession(
                 context = context,
                 viewport = Viewport(360, 640),
                 config = BrowserConfig(allowPrivateAddresses = true),
+                registry = registry,
             )
             session.initialize()
-
-            // Perform simple operation
             session.checkNotClosed()
-
-            // Close session explicitly
             session.close()
         }
 
-        // Wait for main thread handler to finish asynchronous teardowns
+        // Teardown is posted to the main looper, so the last few closes may still
+        // be queued when the loop finishes.
         kotlinx.coroutines.delay(300)
         System.gc()
 
-        // Verify active sessions return to 0 (all sessions destroyed)
-        val finalSessions = PageSession.activeSessions
         assertEquals(
-            "Active sessions count must return to 0 after 100 cycles",
+            "every one of the hundred sessions must have been released",
             0,
-            finalSessions,
+            registry.activeSessions,
         )
+    }
+
+    @Test
+    fun aRegistryCountsOnlyItsOwnSessions() = runBlocking {
+        // The property that makes the gate above trustworthy.
+        val mine = SessionRegistry()
+        val someoneElses = SessionRegistry()
+
+        val session = PageSession(
+            context = context,
+            viewport = null,
+            config = BrowserConfig(),
+            registry = mine,
+        )
+        session.initialize()
+
+        try {
+            assertEquals(1, mine.activeSessions)
+            assertEquals("another owner's registry must not see this session", 0, someoneElses.activeSessions)
+        } finally {
+            session.close()
+        }
     }
 }

@@ -137,7 +137,7 @@ public class PlatformNavigator internal constructor(
             dev.headless.browser.security.SsrfGuard.validateUriResolving(url, config.allowPrivateAddresses)
         } catch (e: BrowserException) {
             if (e.code == ErrorCode.SSRF_BLOCKED) {
-                PageSession.recordSsrfBlocked()
+                session.recordSsrfBlocked()
             }
             throw e
         }
@@ -212,7 +212,7 @@ public class PlatformNavigator internal constructor(
                     dev.headless.browser.security.SsrfGuard.validateUri(targetUrl, config.allowPrivateAddresses)
                 } catch (e: BrowserException) {
                     if (e.code == ErrorCode.SSRF_BLOCKED) {
-                        PageSession.recordSsrfBlocked()
+                        session.recordSsrfBlocked()
                         fatalError = e
                         domReadyDeferred.complete(Unit)
                         loadDeferred.complete(Unit)

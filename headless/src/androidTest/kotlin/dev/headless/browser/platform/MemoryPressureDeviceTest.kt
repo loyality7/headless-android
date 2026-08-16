@@ -7,6 +7,7 @@ import dev.headless.browser.BrowserConfig
 import dev.headless.browser.BrowserException
 import dev.headless.browser.ErrorCode
 import dev.headless.browser.core.PageSession
+import dev.headless.browser.core.SessionRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -20,6 +21,9 @@ import org.junit.runner.RunWith
 class MemoryPressureDeviceTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    /** Counters owned by this test, so another class's sessions cannot be read here. */
+    private val registry = SessionRegistry()
     private lateinit var session: PageSession
 
     @Before
@@ -27,7 +31,7 @@ class MemoryPressureDeviceTest {
         runBlocking {
             MemoryPressureMonitor.setSimulatedCritical(false)
             MemoryPressureMonitor.register(context)
-            session = PageSession(context, viewport = null, config = BrowserConfig())
+            session = PageSession(context, viewport = null, config = BrowserConfig(), registry = registry)
         }
     }
 
@@ -48,7 +52,7 @@ class MemoryPressureDeviceTest {
         // Simulate critical memory pressure
         MemoryPressureMonitor.setSimulatedCritical(true)
 
-        val initialRefusals = PageSession.totalMemoryLimitRefusals
+        val initialRefusals = registry.totalMemoryLimitRefusals
 
         // Attempting checkNotClosed under critical memory pressure must throw MEMORY_LIMIT
         val ex = assertThrows(BrowserException::class.java) {
@@ -56,7 +60,7 @@ class MemoryPressureDeviceTest {
         }
 
         assertEquals(ErrorCode.MEMORY_LIMIT, ex.code)
-        assertTrue("Metric totalMemoryLimitRefusals should increment", PageSession.totalMemoryLimitRefusals > initialRefusals)
+        assertTrue("Metric totalMemoryLimitRefusals should increment", registry.totalMemoryLimitRefusals > initialRefusals)
 
         // Reset memory pressure
         MemoryPressureMonitor.setSimulatedCritical(false)
