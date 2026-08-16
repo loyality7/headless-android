@@ -70,6 +70,8 @@ class BackendRouterDeviceTest {
 
     @Test
     fun routerServesAllOperationsCleanlyWithPlatformBackend() = runBlocking {
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        kotlinx.coroutines.delay(500)
         backendRouter.goto(site.url(Fixture.Static), WaitUntil.Load, timeoutMillis = 30000)
 
         assertEquals("static", backendRouter.title())
