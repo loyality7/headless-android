@@ -30,7 +30,7 @@ class PlatformServiceWorkerEngineTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, null, BrowserConfig())
+        session = PageSession(context, null, BrowserConfig(allowPrivateAddresses = true))
         session.initialize()
         router = PlatformRouter()
     }

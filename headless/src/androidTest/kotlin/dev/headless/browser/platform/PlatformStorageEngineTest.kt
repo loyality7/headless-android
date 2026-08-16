@@ -30,11 +30,11 @@ class PlatformStorageEngineTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, Viewport.Phone, BrowserConfig())
+        session = PageSession(context, Viewport.Phone, BrowserConfig(allowPrivateAddresses = true))
         session.initialize()
-        navigator = PlatformNavigator(session, BrowserConfig())
-        scriptEngine = PlatformScriptEngine(session, BrowserConfig())
-        storageEngine = PlatformStorageEngine(session, scriptEngine, BrowserConfig())
+        navigator = PlatformNavigator(session, BrowserConfig(allowPrivateAddresses = true))
+        scriptEngine = PlatformScriptEngine(session, BrowserConfig(allowPrivateAddresses = true))
+        storageEngine = PlatformStorageEngine(session, scriptEngine, BrowserConfig(allowPrivateAddresses = true))
     }
 
     @After

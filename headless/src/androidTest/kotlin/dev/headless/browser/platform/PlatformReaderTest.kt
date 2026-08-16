@@ -33,11 +33,11 @@ class PlatformReaderTest {
     @Before
     fun setUp() = runBlocking {
         site = FixtureSite()
-        session = PageSession(context, null, BrowserConfig())
+        session = PageSession(context, null, BrowserConfig(allowPrivateAddresses = true))
         session.initialize()
-        navigator = PlatformNavigator(session, BrowserConfig())
-        scriptEngine = PlatformScriptEngine(session, BrowserConfig())
-        reader = PlatformReader(session, scriptEngine, BrowserConfig())
+        navigator = PlatformNavigator(session, BrowserConfig(allowPrivateAddresses = true))
+        scriptEngine = PlatformScriptEngine(session, BrowserConfig(allowPrivateAddresses = true))
+        reader = PlatformReader(session, scriptEngine, BrowserConfig(allowPrivateAddresses = true))
     }
 
     @After
