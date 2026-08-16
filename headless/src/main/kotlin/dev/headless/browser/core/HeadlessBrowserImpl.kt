@@ -28,6 +28,10 @@ internal class HeadlessBrowserImpl(
     private val sessionLock = Mutex()
     private val isClosed = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    init {
+        dev.headless.browser.platform.MemoryPressureMonitor.register(appContext)
+    }
+
     override suspend fun newPage(viewport: Viewport?): Page = sessionLock.withLock {
         checkNotClosed()
         

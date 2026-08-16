@@ -67,6 +67,10 @@ public class PageSession(
     private val isRendererDead = AtomicBoolean(false)
     private val capabilityProbe = dev.headless.browser.protocol.ProtocolCapabilityProbe(context, config)
 
+    init {
+        dev.headless.browser.platform.MemoryPressureMonitor.register(context)
+    }
+
     private val startTimeMs = System.currentTimeMillis()
     private val navigationCount = java.util.concurrent.atomic.AtomicInteger(0)
     private val jsEvalCount = java.util.concurrent.atomic.AtomicInteger(0)

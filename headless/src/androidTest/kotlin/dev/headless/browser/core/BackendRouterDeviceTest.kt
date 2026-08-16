@@ -40,12 +40,12 @@ class BackendRouterDeviceTest {
         session = PageSession(context, dev.headless.browser.Viewport.Phone, BrowserConfig(enableProtocolBackend = false, allowPrivateAddresses = true))
         session.initialize()
 
-        navigator = PlatformNavigator(session, session.config)
+        platformRouter = PlatformRouter()
+        navigator = PlatformNavigator(session, session.config, platformRouter)
         scriptEngine = PlatformScriptEngine(session, session.config)
         reader = PlatformReader(session, scriptEngine, session.config)
         inputEngine = PlatformInputEngine(session, scriptEngine, reader, session.config)
         screenshotEngine = PlatformScreenshotEngine(session, session.config)
-        platformRouter = PlatformRouter()
 
         backendRouter = BackendRouter(
             session = session,

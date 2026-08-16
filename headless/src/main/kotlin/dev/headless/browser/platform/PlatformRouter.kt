@@ -15,6 +15,8 @@ internal class PlatformRouter {
     private val routeRules = mutableListOf<Pair<String, (Route) -> Unit>>()
     private val requestHooks = mutableListOf<(String) -> Unit>()
 
+    internal var requestActivityTracker: RequestActivityTracker? = null
+
     fun blockTypes(vararg types: ResourceType) {
         blockedTypes.addAll(types)
     }
@@ -40,6 +42,9 @@ internal class PlatformRouter {
     fun interceptRequest(request: WebResourceRequest?): WebResourceResponse? {
         if (request == null) return null
         val urlStr = request.url.toString()
+
+        // Track network request activity for settle engine (D2)
+        requestActivityTracker?.recordRequest()
 
         // Notify request hooks
         requestHooks.forEach { hook -> hook(urlStr) }
