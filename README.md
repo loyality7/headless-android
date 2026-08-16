@@ -40,49 +40,51 @@ On Android, web contents debugging is a process-wide setting that exposes all We
 
 ## Installation
 
-Add the dependency to `build.gradle.kts`:
+To include Headless Android SDK in your project:
 
 ```kotlin
 repositories {
     mavenCentral()
-    mavenLocal() // For local builds
+    mavenLocal() // For local builds (`./gradlew publishToMavenLocal`)
 }
 
 dependencies {
-    implementation("dev.headless:headless-android:1.0.0")
+    // Local build artifact (generated via `./gradlew publishToMavenLocal`):
+    implementation("dev.headless:headless-android:1.1.0-SNAPSHOT")
+
+    // Or include directly as a multi-module project dependency:
+    // implementation(project(":headless"))
 }
 ```
 
+*Note: Artifacts are currently built from source or published to `mavenLocal()`. Maven Central release deployment will accompany the v1.1.0 release.*
+
 ## API Usage Examples
 
-### Navigation and DOM Scraping
+### Navigation and DOM Scraping via HeadlessBrowser Facade
 
 ```kotlin
 import dev.headless.browser.BrowserConfig
+import dev.headless.browser.HeadlessBrowser
 import dev.headless.browser.Viewport
 import dev.headless.browser.WaitUntil
-import dev.headless.browser.core.PageSession
-import dev.headless.browser.platform.PlatformNavigator
-import dev.headless.browser.platform.PlatformReader
 
 suspend fun scrapeTopStory(context: Context) {
     val config = BrowserConfig(enableProtocolBackend = false)
-    val session = PageSession(context, Viewport.Phone, config)
-    session.initialize()
+    val browser = HeadlessBrowser.create(context, config)
+    val page = browser.newPage(Viewport.Phone)
 
     try {
-        val navigator = PlatformNavigator(session, config)
-        val reader = PlatformReader(session, null, config)
+        page.goto("https://news.ycombinator.com", WaitUntil.Load)
 
-        navigator.goto("https://news.ycombinator.com", WaitUntil.Load)
-
-        val title = reader.title()
-        val topStory = reader.querySelector(".titleline > a")
+        val title = page.title()
+        val topStory = page.querySelector(".titleline > a")
 
         println("Page Title: $title")
         println("Top Headline: ${topStory?.text}")
     } finally {
-        session.close()
+        page.close()
+        browser.close()
     }
 }
 ```
@@ -90,27 +92,23 @@ suspend fun scrapeTopStory(context: Context) {
 ### Form Input Automation
 
 ```kotlin
-import dev.headless.browser.platform.PlatformInputEngine
+import dev.headless.browser.Page
 
-suspend fun submitForm(session: PageSession, config: BrowserConfig) {
-    val inputEngine = PlatformInputEngine(session, null, null, config)
-
-    inputEngine.type("#username", "alice")
-    inputEngine.type("#password", "Password123!")
-    inputEngine.fillTime("#appointment-time", "14:30")
-    inputEngine.press("#password", "Enter")
+suspend fun submitForm(page: Page) {
+    page.type("#username", "alice")
+    page.type("#password", "Password123!")
+    page.fillTime("#appointment-time", "14:30")
+    page.press("#password", "Enter")
 }
 ```
 
 ### Diagnostic Screenshot
 
 ```kotlin
-import dev.headless.browser.platform.PlatformScreenshotEngine
-import dev.headless.browser.platform.ScreenshotOptions
+import dev.headless.browser.Page
 
-suspend fun captureScreenshot(session: PageSession, config: BrowserConfig): ByteArray {
-    val screenshotEngine = PlatformScreenshotEngine(session, config)
-    return screenshotEngine.screenshot(ScreenshotOptions())
+suspend fun captureScreenshot(page: Page): ByteArray {
+    return page.screenshot()
 }
 ```
 
