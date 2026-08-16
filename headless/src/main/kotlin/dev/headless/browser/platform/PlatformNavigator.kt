@@ -67,7 +67,14 @@ public class PlatformNavigator internal constructor(
             hosted.webView.loadUrl(url)
         }
 
-        val settled: Boolean
+        // Two stages. The document has to arrive before anything can be said
+        // about whether it has settled, so every mode waits for the load signal
+        // first and then, where the mode asks for more, hands over to the settle
+        // engine. Modes beyond Load and DomReady used to fall through to the
+        // load event and report settled = true, which returned a page that had
+        // not finished building and said it had.
+        val startNano = System.nanoTime()
+        var settled: Boolean
         try {
             settled = withTimeout(effectiveTimeout) {
                 client.awaitSignal()
@@ -82,6 +89,17 @@ public class PlatformNavigator internal constructor(
                 status = client.lastHttpStatus,
                 settled = false,
             )
+        }
+
+        if (settled && waitUntil.needsSettleEngine()) {
+            val elapsedMillis = (System.nanoTime() - startNano) / 1_000_000L
+            val remaining = effectiveTimeout - elapsedMillis
+            settled = if (remaining <= 0) {
+                false
+            } else {
+                val scriptEngine = PlatformScriptEngine(session, config)
+                PlatformSettleEngine(session, scriptEngine, config).settle(waitUntil, remaining)
+            }
         }
 
         // Check if there was a fatal navigation error
@@ -119,6 +137,18 @@ public class PlatformNavigator internal constructor(
             }
             throw e
         }
+    }
+
+    /**
+     * Whether this mode needs more than the document's own load signal.
+     *
+     * `Load` and `DomReady` are satisfied by the WebView client callbacks.
+     * Everything else describes a condition the page reaches afterwards, and
+     * only the settle engine can observe it.
+     */
+    private fun WaitUntil.needsSettleEngine(): Boolean = when (this) {
+        is WaitUntil.Load, is WaitUntil.DomReady -> false
+        is WaitUntil.DomStable, is WaitUntil.NetworkIdle, is WaitUntil.Custom -> true
     }
 
     private inner class NavigationClient(
@@ -231,11 +261,22 @@ public class PlatformNavigator internal constructor(
             }
         }
 
+        /**
+         * Waits for the document itself.
+         *
+         * Every mode needs this much: a page cannot be stable, idle or matching
+         * a predicate before it has loaded. What a mode needs *beyond* this is
+         * the settle engine's job, and [goto] hands over there rather than
+         * treating the load event as the answer.
+         */
         suspend fun awaitSignal() {
             when (waitUntil) {
-                is WaitUntil.Load -> loadDeferred.await()
                 is WaitUntil.DomReady -> domReadyDeferred.await()
-                else -> loadDeferred.await() // Default fallback for basic navigation
+                is WaitUntil.Load,
+                is WaitUntil.DomStable,
+                is WaitUntil.NetworkIdle,
+                is WaitUntil.Custom,
+                -> loadDeferred.await()
             }
         }
     }
