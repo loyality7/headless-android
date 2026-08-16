@@ -37,6 +37,11 @@ public class PlatformNavigator internal constructor(
     private val config: BrowserConfig,
     private val router: PlatformRouter? = null,
 ) {
+    public constructor(
+        session: PageSession,
+        config: BrowserConfig,
+    ) : this(session, config, null)
+
     init {
         router?.requestActivityTracker = session.requestActivity
     }
