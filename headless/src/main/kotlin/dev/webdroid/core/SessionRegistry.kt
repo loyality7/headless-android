@@ -57,6 +57,7 @@ public class SessionRegistry {
         ssrfBlocked.incrementAndGet()
     }
 
+    /** A readable summary of the counters, for logs. */
     override fun toString(): String =
         "SessionRegistry(active=$activeSessions, crashes=$totalRendererCrashes, " +
             "ooms=$totalRendererOoms, memoryRefusals=$totalMemoryLimitRefusals, " +

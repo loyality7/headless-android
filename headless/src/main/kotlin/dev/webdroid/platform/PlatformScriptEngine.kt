@@ -74,6 +74,7 @@ public class PlatformScriptEngine(
         }
     }
 
+    /** Output-capping constants shared with tests. */
     public companion object {
         /** 1 million characters output cap (~1 MB UTF-16) to prevent OOM. */
         public const val MAX_OUTPUT_CHARS: Int = 1_000_000

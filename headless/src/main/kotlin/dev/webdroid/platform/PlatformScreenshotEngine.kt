@@ -15,14 +15,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
+/** Encoding for a captured screenshot. */
 public enum class ScreenshotFormat {
+    /** Lossless; [ScreenshotOptions.quality] is ignored. */
     PNG,
+
+    /** Lossy; [ScreenshotOptions.quality] controls the trade-off. */
     JPEG,
+
+    /** Falls back to lossy WEBP below API 30, where lossless WEBP is unavailable. */
     WEBP,
 }
 
+/** How to encode a screenshot. */
 public data class ScreenshotOptions(
+    /** The image encoding to produce. */
     public val format: ScreenshotFormat = ScreenshotFormat.PNG,
+    /** 0-100. Ignored by [ScreenshotFormat.PNG], which is always lossless. */
     public val quality: Int = 100,
 )
 

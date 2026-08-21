@@ -18,8 +18,11 @@ import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
+/** An unsolicited CDP notification, not a response to a command this side sent. */
 public data class CdpEvent(
+    /** The CDP method name, e.g. `Network.requestWillBeSent`. */
     public val method: String,
+    /** The event's payload, in whatever shape that method defines. */
     public val params: JSONObject,
 )
 

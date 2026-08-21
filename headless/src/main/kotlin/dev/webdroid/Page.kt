@@ -45,6 +45,7 @@ public interface Page {
     /** The document's serialised HTML. Subject to the same cap as [text]. */
     public suspend fun content(): String
 
+    /** The document's `<title>` text. */
     public suspend fun title(): String
 
     /** The document actually loaded, which after a redirect is not the requested URL. */
@@ -67,10 +68,13 @@ public interface Page {
     /** Presses a key against the focused element, for example `Enter`. */
     public suspend fun press(key: String, timeoutMillis: Long = 0)
 
+    /** Waits for the element, then moves the pointer over it without clicking. */
     public suspend fun hover(selector: String, timeoutMillis: Long = 0)
 
+    /** Waits for the element, then scrolls the viewport so it is visible. */
     public suspend fun scrollIntoView(selector: String, timeoutMillis: Long = 0)
 
+    /** Waits for the element, then selects an option on a `<select>` by its value. */
     public suspend fun selectOption(selector: String, value: String, timeoutMillis: Long = 0)
 
     /** Sets the value of a `time`-typed input, for example `"14:30"`. */
@@ -130,12 +134,16 @@ public interface Page {
      */
     public suspend fun blockResourceTypes(vararg types: ResourceType)
 
+    /** Registers a callback fired for every outgoing request. */
     public fun onRequest(listener: (Request) -> Unit)
 
+    /** Registers a callback fired for every received response. */
     public fun onResponse(listener: (Response) -> Unit)
 
+    /** Overrides the `User-Agent` header sent with every subsequent request. */
     public suspend fun setUserAgent(userAgent: String)
 
+    /** Merges headers into every subsequent outgoing request. */
     public suspend fun setExtraHeaders(headers: Map<String, String>)
 
     // ---- storage ---------------------------------------------------------
@@ -143,6 +151,7 @@ public interface Page {
     /** Cookie storage is process-global: these are not scoped to this session. */
     public suspend fun cookies(url: String): List<Cookie>
 
+    /** Writes a cookie into the process-global jar. */
     public suspend fun setCookie(cookie: Cookie)
 
     /**
@@ -169,11 +178,13 @@ public interface Page {
 
     // ---- observation -----------------------------------------------------
 
+    /** Every frame currently attached to the page, including the main frame. */
     public suspend fun frames(): List<Frame>
 
     /** Dialogs block the page until answered. Without a listener they are dismissed. */
     public fun onDialog(listener: suspend (Dialog) -> Unit)
 
+    /** Registers a callback fired for every console message logged by the page. */
     public fun onConsole(listener: (ConsoleMessage) -> Unit)
 
     /** What this session can do. Branch on it instead of discovering a gap through a failure. */
@@ -188,4 +199,11 @@ public interface Page {
     public suspend fun close()
 }
 
-public enum class ImageFormat { Png, Jpeg }
+/** Encoding for [Page.screenshot]. */
+public enum class ImageFormat {
+    /** Lossless; larger output. */
+    Png,
+
+    /** Lossy, sized by the call's `quality` argument. */
+    Jpeg,
+}

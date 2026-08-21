@@ -41,6 +41,7 @@ public object MemoryPressureMonitor : ComponentCallbacks2 {
      */
     public fun isCriticalMemory(): Boolean = isCritical.get()
 
+    /** Called by the OS as memory pressure rises or falls; updates the critical flag accordingly. */
     override fun onTrimMemory(level: Int) {
         when (level) {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
@@ -68,8 +69,10 @@ public object MemoryPressureMonitor : ComponentCallbacks2 {
         }
     }
 
+    /** Called by the OS on device configuration changes; not a memory signal, so a no-op here. */
     override fun onConfigurationChanged(newConfig: Configuration) {}
 
+    /** Called by the OS under severe memory pressure; always marks critical. */
     override fun onLowMemory() {
         isCritical.set(true)
     }

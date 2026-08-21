@@ -44,6 +44,7 @@ public interface HeadlessBrowser {
     /** Closes every open session and releases everything. Safe to call twice. */
     public suspend fun close()
 
+    /** Where a [HeadlessBrowser] instance comes from; there is no public constructor. */
     public companion object {
         /**
          * Creates a browser. Cheap: nothing is started until [newPage].

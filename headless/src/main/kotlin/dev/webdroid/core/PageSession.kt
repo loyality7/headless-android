@@ -28,11 +28,17 @@ import java.util.concurrent.atomic.AtomicReference
  * acquire → initialize → navigate → settle → operate → close → release
  */
 public enum class SessionState {
+    /** Session object exists but [PageSession.initialize] has not run yet. */
     Acquired,
+    /** The underlying WebView has been created and is ready to navigate. */
     Initialized,
+    /** A navigation is in flight. */
     Navigating,
+    /** Waiting for the page to become idle after navigation before it can be used. */
     Settling,
+    /** A caller-driven operation (script evaluation, interaction, etc.) is running. */
     Operating,
+    /** Torn down; any further use throws [ErrorCode.DETACHED]. */
     Closed,
 }
 
@@ -47,8 +53,11 @@ public enum class SessionState {
  * - Main thread operations are marshalled cleanly to the Looper.Main.
  */
 public class PageSession(
+    /** The Android context this session runs in. */
     public val context: Context,
+    /** The size the WebView was created at; null means the default 1x1 offscreen size. */
     public val viewport: Viewport?,
+    /** The [BrowserConfig] this session was created with. */
     public val config: BrowserConfig,
     private val parentJob: Job? = null,
     /**
@@ -78,11 +87,14 @@ public class PageSession(
     private val jsExecutionTimeMs = java.util.concurrent.atomic.AtomicLong(0)
     private val blockedBytesCount = java.util.concurrent.atomic.AtomicLong(0)
 
+    /** Called by engines after a navigation completes, to bump the local navigation counter. */
     public fun recordNavigation(): Unit { navigationCount.incrementAndGet() }
+    /** Called by engines after a script runs, to accumulate evaluation count and time. */
     public fun recordJsEvaluation(durationMs: Long): Unit {
         jsEvalCount.incrementAndGet()
         jsExecutionTimeMs.addAndGet(durationMs)
     }
+    /** Called by engines when a request is blocked, to tally the bytes that were saved. */
     public fun recordBlockedBytes(bytes: Long): Unit { blockedBytesCount.addAndGet(bytes) }
 
     /**
@@ -125,16 +137,19 @@ public class PageSession(
             }
         }
     }
+    /** Scope tied to [sessionJob]; every session-owned coroutine should launch on this. */
     public var scope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate + sessionJob + CoroutineName("PageSession"))
 
     private var _hostedWebView: HostedWebView? = null
 
+    /** The live WebView, or throws [ErrorCode.DETACHED] if [initialize] has not run yet. */
     public val hostedWebView: HostedWebView
         get() {
             checkNotClosed()
             return _hostedWebView ?: throw browserError(ErrorCode.DETACHED, "session is not initialized")
         }
 
+    /** Current lifecycle state. */
     public val state: SessionState
         get() = stateRef.get()
 

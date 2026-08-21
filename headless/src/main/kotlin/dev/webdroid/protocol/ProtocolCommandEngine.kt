@@ -5,13 +5,19 @@ import dev.webdroid.ErrorCode
 import dev.webdroid.browserError
 import org.json.JSONObject
 
+/** The result of a `Runtime.evaluate` call. */
 public data class EvaluateResult(
+    /** The evaluated value, or null for `undefined`/`null`. */
     public val value: Any?,
+    /** The CDP-reported runtime type, e.g. `"string"`, `"number"`, `"undefined"`. */
     public val type: String,
 )
 
+/** A DOM node as CDP identifies it: by id, not by reference. */
 public data class DomNode(
+    /** CDP's node id, valid until the next `DOM.getDocument`. */
     public val nodeId: Int,
+    /** The tag name, e.g. `"DIV"`, or `"#document"` for the root. */
     public val nodeName: String,
 )
 

@@ -55,11 +55,13 @@ public enum class ErrorCode {
  * is kept as [cause] for debugging and is not part of the message.
  */
 public class BrowserException internal constructor(
+    /** Which of the closed set of failures this is. Branch on this, not on [message]. */
     public val code: ErrorCode,
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause) {
 
+    /** Includes [code] alongside the message, for logs. */
     override fun toString(): String = "BrowserException($code): $message"
 }
 

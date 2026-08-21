@@ -45,9 +45,13 @@ public class BrowserConfig(
  * bounds the whole task even when no single stage exceeds its own limit.
  */
 public class Timeouts(
+    /** Ceiling for a [dev.webdroid.Page.goto] call. */
     public val navigationMillis: Long = 30_000,
+    /** Ceiling for waiting on the [WaitUntil] condition after navigation completes. */
     public val settleMillis: Long = 10_000,
+    /** Ceiling for a single [dev.webdroid.Page.evaluate] call. */
     public val scriptMillis: Long = 10_000,
+    /** Ceiling for the whole task, even when no single stage exceeds its own limit. */
     public val totalMillis: Long = 120_000,
 ) {
     init {
@@ -69,8 +73,11 @@ public class Timeouts(
  * real viewport, chosen when the session is created and fixed for its lifetime.
  */
 public class Viewport(
+    /** Width in CSS pixels. */
     public val width: Int,
+    /** Height in CSS pixels. */
     public val height: Int,
+    /** Rendered pixels per CSS pixel, for crisper screenshots on high-density displays. */
     public val deviceScaleFactor: Float = 1f,
 ) {
     init {
@@ -79,6 +86,7 @@ public class Viewport(
         require(deviceScaleFactor > 0f) { "deviceScaleFactor must be positive, was $deviceScaleFactor" }
     }
 
+    /** Preset viewports for callers that do not want to pick their own dimensions. */
     public companion object {
         /** A common phone viewport, for callers that do not care to pick one. */
         public val Phone: Viewport = Viewport(1080, 1920, 1.0f)
@@ -100,7 +108,10 @@ public sealed interface WaitUntil {
     public data object DomReady : WaitUntil
 
     /** No in-flight requests for [quietMillis]. */
-    public data class NetworkIdle(public val quietMillis: Long = 500) : WaitUntil
+    public data class NetworkIdle(
+        /** How long the network must stay quiet before this condition is satisfied. */
+        public val quietMillis: Long = 500,
+    ) : WaitUntil
 
     /**
      * No DOM mutations for [quietMillis].
@@ -108,8 +119,14 @@ public sealed interface WaitUntil {
      * Independent of network activity, so it is the signal that works on both
      * backends and the one to reach for on a client-rendered page.
      */
-    public data class DomStable(public val quietMillis: Long = 500) : WaitUntil
+    public data class DomStable(
+        /** How long the DOM must stay unmutated before this condition is satisfied. */
+        public val quietMillis: Long = 500,
+    ) : WaitUntil
 
     /** A caller predicate: a JavaScript expression polled until it is truthy. */
-    public data class Custom(public val expression: String) : WaitUntil
+    public data class Custom(
+        /** The JavaScript expression polled until it evaluates truthy. */
+        public val expression: String,
+    ) : WaitUntil
 }

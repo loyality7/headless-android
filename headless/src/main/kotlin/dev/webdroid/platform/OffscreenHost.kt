@@ -242,9 +242,13 @@ internal class OffscreenHost(private val context: Context) {
 
 /** A WebView and the arrangement it was given. */
 public class HostedWebView(
+    /** The WebView instance this session drives. */
     public val webView: WebView,
+    /** The [HostMode] this view was created under. */
     public val mode: HostMode,
+    /** The width it was created at; not updated if the view is resized afterward. */
     public val width: Int,
+    /** The height it was created at; not updated if the view is resized afterward. */
     public val height: Int,
 ) {
     /** Set once, so a second destroy is a no-op rather than a crash. */

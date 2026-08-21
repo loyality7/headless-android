@@ -1,9 +1,25 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.dokka)
     `maven-publish`
+}
+
+tasks.named<org.jetbrains.dokka.gradle.DokkaTask>("dokkaHtml") {
+    moduleName.set("WebDroid")
+    dokkaSourceSets.named("main") {
+        reportUndocumented.set(true)
+        skipEmptyPackages.set(true)
+        includeNonPublic.set(false)
+        sourceLink {
+            localDirectory.set(file("src/main/kotlin"))
+            remoteUrl.set(URI("https://github.com/loyality7/webdroid/tree/main/headless/src/main/kotlin").toURL())
+            remoteLineSuffix.set("#L")
+        }
+    }
 }
 
 android {

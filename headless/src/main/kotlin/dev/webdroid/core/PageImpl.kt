@@ -134,6 +134,7 @@ public class PageImpl internal constructor(
 
     override suspend fun content(): String = backendRouter.content()
 
+    /** Delegates to [backendRouter]. */
     override suspend fun title(): String = backendRouter.title()
 
     override suspend fun url(): String {
@@ -166,14 +167,17 @@ public class PageImpl internal constructor(
         platformInputEngine.press("body", key, timeoutMillis)
     }
 
+    /** Delegates to [platformInputEngine]. */
     override suspend fun hover(selector: String, timeoutMillis: Long) {
         platformInputEngine.hover(selector, timeoutMillis)
     }
 
+    /** Delegates to [platformInputEngine]. */
     override suspend fun scrollIntoView(selector: String, timeoutMillis: Long) {
         platformInputEngine.scrollIntoView(selector, timeoutMillis)
     }
 
+    /** Delegates to [platformInputEngine]. */
     override suspend fun selectOption(selector: String, value: String, timeoutMillis: Long) {
         platformInputEngine.selectOption(selector, value, timeoutMillis)
     }
@@ -218,6 +222,7 @@ public class PageImpl internal constructor(
         platformRouter.blockTypes(*types)
     }
 
+    /** Delegates to [platformRouter], synthesizing a [Request] per intercepted URL. */
     override fun onRequest(listener: (Request) -> Unit) {
         platformRouter.onRequest { urlStr ->
             listener(
@@ -231,10 +236,12 @@ public class PageImpl internal constructor(
         }
     }
 
+    /** Not yet implemented: registered but never invoked. */
     override fun onResponse(listener: (Response) -> Unit) {
         // Response observation hook
     }
 
+    /** Sets the WebView's `User-Agent` string directly. */
     override suspend fun setUserAgent(userAgent: String) {
         session.checkNotClosed()
         withContext(Dispatchers.Main) {
@@ -242,6 +249,7 @@ public class PageImpl internal constructor(
         }
     }
 
+    /** Not yet implemented: accepted but never applied to requests. */
     override suspend fun setExtraHeaders(headers: Map<String, String>) {
         // Headers applied per request
     }
@@ -252,6 +260,7 @@ public class PageImpl internal constructor(
         return platformStorageEngine.getCookies(url)
     }
 
+    /** Delegates to [platformStorageEngine]. */
     override suspend fun setCookie(cookie: Cookie) {
         platformStorageEngine.setCookie(cookie)
     }
@@ -278,6 +287,7 @@ public class PageImpl internal constructor(
 
     // ---- observation -----------------------------------------------------
 
+    /** Reports only the main frame; the WebView does not expose child frames. */
     override suspend fun frames(): List<Frame> {
         return listOf(object : Frame {
             override val url: String get() = session.hostedWebView.webView.url ?: ""
@@ -292,6 +302,7 @@ public class PageImpl internal constructor(
         // Dialog handler
     }
 
+    /** Not yet implemented: registered but never invoked. */
     override fun onConsole(listener: (ConsoleMessage) -> Unit) {
         // Console handler
     }

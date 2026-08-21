@@ -17,12 +17,19 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 
+/** One debuggable target the control endpoint reported, from `GET /json/list`. */
 public data class ProtocolTarget(
+    /** The target's CDP id. */
     public val id: String,
+    /** `"page"` for a renderable target; other values exist but are not bound here. */
     public val type: String,
+    /** The page's title at discovery time, not kept live. */
     public val title: String,
+    /** The page's URL at discovery time, not kept live. */
     public val url: String,
+    /** The path to open a WebSocket connection to this target, or null if none was offered. */
     public val webSocketDebuggerUrl: String?,
+    /** Which socket name answered this target; empty when not tracked by the caller. */
     public val socketName: String = "",
 )
 

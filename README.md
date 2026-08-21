@@ -2,6 +2,8 @@
 
 A browser automation library for Android. Drive live Chromium pages programmatically inside Android applications without external servers, Node.js runtimes, USB cables, or visible UI.
 
+**[API reference (KDoc)](https://loyality7.github.io/webdroid/)**
+
 ## Architecture
 
 WebDroid hosts an in-process, offscreen `android.webkit.WebView` instance sharing the system Chromium engine.
