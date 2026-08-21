@@ -13,7 +13,19 @@ android {
     defaultConfig {
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
         consumerProguardFiles("consumer-rules.pro")
+    }
+
+    testOptions {
+        // Restarts the app process between tests rather than sharing one for
+        // the whole run. Without it, a process-global change one test makes —
+        // WebView.setWebContentsDebuggingEnabled(true) has no way back to
+        // false — silently carries into every test that runs after it in the
+        // same process. That's what let BackendRouterDeviceTest fail only
+        // inside the full suite, right after a test enabling the protocol
+        // backend, and never standalone.
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
     publishing {
@@ -92,4 +104,5 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)
+    androidTestUtil(libs.androidx.test.orchestrator)
 }
