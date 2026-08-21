@@ -109,9 +109,10 @@ internal class BackendRouter(
                 if (targetNodeId == 0) {
                     null
                 } else {
+                    val escapedSelector = org.json.JSONObject.quote(selector)
                     val evalRes = engine.runtimeEvaluate("""
                         (function() {
-                            var el = document.querySelector("$selector");
+                            var el = document.querySelector($escapedSelector);
                             if (!el) return null;
                             var attrs = {};
                             for (var i = 0; i < el.attributes.length; i++) {
@@ -158,9 +159,10 @@ internal class BackendRouter(
         val engine = protocolEngine
         if (caps.protocolBackend && engine != null) {
             logRouting("click", "ProtocolCommandEngine")
+            val escapedSelector = org.json.JSONObject.quote(selector)
             val evalRes = engine.runtimeEvaluate("""
                 (function() {
-                    var el = document.querySelector("$selector");
+                    var el = document.querySelector($escapedSelector);
                     if (!el) return false;
                     var rect = el.getBoundingClientRect();
                     return JSON.stringify({x: rect.left + rect.width/2, y: rect.top + rect.height/2});

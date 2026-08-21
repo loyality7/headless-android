@@ -29,10 +29,6 @@ import dev.headless.browser.platform.PlatformServiceWorkerEngine
 import dev.headless.browser.platform.PlatformStorageEngine
 import dev.headless.browser.platform.ScreenshotFormat
 import dev.headless.browser.platform.ScreenshotOptions
-import dev.headless.browser.protocol.CdpChannel
-import dev.headless.browser.protocol.ProtocolCommandEngine
-import dev.headless.browser.protocol.ProtocolTargetDiscovery
-import dev.headless.browser.protocol.WebSocketClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -55,6 +51,12 @@ public class PageImpl internal constructor(
     private val platformChannelEngine = PlatformChannelEngine(session, config)
     private val platformServiceWorkerEngine = PlatformServiceWorkerEngine(platformRouter)
 
+    init {
+        // Best-effort: routes this page's blockTypes()/route() rules to service
+        // worker requests too, on devices that support it. A no-op elsewhere.
+        platformServiceWorkerEngine.setupServiceWorkerInterception()
+    }
+
     private val backendRouter = BackendRouter(
         session = session,
         config = config,
@@ -66,8 +68,7 @@ public class PageImpl internal constructor(
         platformRouter = platformRouter,
     )
 
-    private var cdpChannel: CdpChannel? = null
-    private var webSocketClient: WebSocketClient? = null
+    private var protocolConnection: dev.headless.browser.protocol.ProtocolConnector.Connection? = null
 
     /** Direct access to block resource types (images, fonts, media). */
     public fun blockTypes(vararg types: ResourceType) {
@@ -81,7 +82,29 @@ public class PageImpl internal constructor(
         waitUntil: WaitUntil,
         timeoutMillis: Long,
     ): NavigationResult {
-        return backendRouter.goto(url, waitUntil, timeoutMillis)
+        val result = backendRouter.goto(url, waitUntil, timeoutMillis)
+        connectProtocolBackendIfNeeded(result.url)
+        return result
+    }
+
+    /**
+     * Opens the protocol backend's connection for this session, once, the first
+     * time a navigation lands on a device where it is enabled and reachable.
+     *
+     * Silent on failure: [ProtocolConnector.connect] already returns null
+     * rather than throwing, so a device that cannot connect stays on the
+     * platform backend without the caller noticing anything went wrong.
+     */
+    private suspend fun connectProtocolBackendIfNeeded(currentUrl: String) {
+        if (!config.enableProtocolBackend || protocolConnection != null) return
+        val caps = session.capabilities()
+        if (!caps.protocolBackend) return
+
+        val connection = dev.headless.browser.protocol.ProtocolConnector.connect(session, config, currentUrl)
+        if (connection != null) {
+            protocolConnection = connection
+            backendRouter.setProtocolEngine(connection.engine)
+        }
     }
 
     override suspend fun waitForSelector(selector: String, timeoutMillis: Long): Element {
@@ -149,6 +172,10 @@ public class PageImpl internal constructor(
 
     override suspend fun selectOption(selector: String, value: String, timeoutMillis: Long) {
         platformInputEngine.selectOption(selector, value, timeoutMillis)
+    }
+
+    override suspend fun fillTime(selector: String, time: String, timeoutMillis: Long) {
+        platformInputEngine.fillTime(selector, time, timeoutMillis)
     }
 
     // ---- script ----------------------------------------------------------
@@ -273,8 +300,7 @@ public class PageImpl internal constructor(
 
     override suspend fun close() {
         try {
-            cdpChannel?.close()
-            webSocketClient?.close()
+            protocolConnection?.close()
         } catch (_: Throwable) {}
         session.close()
         onClose?.invoke()

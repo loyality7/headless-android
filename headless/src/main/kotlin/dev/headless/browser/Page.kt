@@ -73,6 +73,9 @@ public interface Page {
 
     public suspend fun selectOption(selector: String, value: String, timeoutMillis: Long = 0)
 
+    /** Sets the value of a `time`-typed input, for example `"14:30"`. */
+    public suspend fun fillTime(selector: String, time: String, timeoutMillis: Long = 0)
+
     // ---- script ----------------------------------------------------------
 
     /**

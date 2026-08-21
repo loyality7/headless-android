@@ -72,6 +72,7 @@ public class PageSession(
     }
 
     private val startTimeMs = System.currentTimeMillis()
+    private val taskStartNano = System.nanoTime()
     private val navigationCount = java.util.concurrent.atomic.AtomicInteger(0)
     private val jsEvalCount = java.util.concurrent.atomic.AtomicInteger(0)
     private val jsExecutionTimeMs = java.util.concurrent.atomic.AtomicLong(0)
@@ -283,6 +284,7 @@ public class PageSession(
             registry.recordMemoryLimitRefusal()
             throw browserError(ErrorCode.MEMORY_LIMIT, "Operation refused due to critical memory pressure")
         }
+        checkTotalTaskBudget()
         val previousState = stateRef.get()
         if (previousState == SessionState.Closed) {
             throw browserError(ErrorCode.DETACHED, "session is closed")
@@ -320,6 +322,22 @@ public class PageSession(
         if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
             registry.recordMemoryLimitRefusal()
             throw browserError(ErrorCode.MEMORY_LIMIT, "Refused operation due to critical memory pressure")
+        }
+    }
+
+    /**
+     * The ceiling on the whole task, from session creation, not any one stage.
+     *
+     * Each engine already bounds its own call against its own timeout; nothing
+     * previously bounded the sequence of them, so a caller chaining several
+     * calls that each individually stayed under their own limit could still run
+     * far longer in total than [dev.headless.browser.Timeouts.totalMillis]
+     * promises.
+     */
+    private fun checkTotalTaskBudget() {
+        val remaining = dev.headless.browser.core.MonotonicTimeout.remainingMillis(taskStartNano, config.timeouts.totalMillis)
+        if (remaining <= 0) {
+            throw browserError(ErrorCode.TIMEOUT, "total task budget of ${config.timeouts.totalMillis}ms exceeded")
         }
     }
 

@@ -124,6 +124,7 @@ public class Route internal constructor(
         syntheticResponse = response
     }
 
+    @Deprecated("Identical to continue(); kept only for source compatibility.", ReplaceWith("`continue`()"))
     public fun resume() {
         action = Action.Continue
     }
