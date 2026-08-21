@@ -13,7 +13,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "headless-android"
+rootProject.name = "webdroid"
 
 include(":headless")
 

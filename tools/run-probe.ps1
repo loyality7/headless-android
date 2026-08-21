@@ -15,7 +15,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 $root = Split-Path -Parent $PSScriptRoot
-$pkg = "dev.headless.probe.test"
+$pkg = "dev.webdroid.probe.test"
 $runner = "$pkg/androidx.test.runner.AndroidJUnitRunner"
 $apk = Join-Path $root "probe\build\outputs\apk\androidTest\debug\probe-debug-androidTest.apk"
 $log = Join-Path $root "probe-results.txt"
@@ -89,7 +89,7 @@ if ($install -match "Success") { Ok "installed" } else { Bad "$install"; exit 1 
 # seconds to learn rather than minutes.
 Step "preflight: can the host activity show?"
 adb shell am force-stop $pkg 2>&1 | Out-Null
-adb shell am start -n "$pkg/dev.headless.probe.HostActivity" 2>&1 | Out-Null
+adb shell am start -n "$pkg/dev.webdroid.probe.HostActivity" 2>&1 | Out-Null
 Start-Sleep -Seconds 2
 $top = (adb shell dumpsys activity activities) | Select-String "topResumedActivity|mResumedActivity" | Select-Object -First 1
 if ($top -match "HostActivity") {
@@ -124,11 +124,11 @@ foreach ($chunk in $selected) {
 
     adb shell am force-stop $pkg 2>&1 | Out-Null
     if ($chunk.key -eq "attached" -or $chunk.key -eq "draw") {
-        adb shell am start -n "$pkg/dev.headless.probe.HostActivity" 2>&1 | Out-Null
+        adb shell am start -n "$pkg/dev.webdroid.probe.HostActivity" 2>&1 | Out-Null
         Start-Sleep -Milliseconds 500
     }
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $output = adb shell am instrument -w -e class "dev.headless.probe.$($chunk.test)" $runner 2>&1
+    $output = adb shell am instrument -w -e class "dev.webdroid.probe.$($chunk.test)" $runner 2>&1
     $seconds = [int]$sw.Elapsed.TotalSeconds
 
     # Capture measurements from instrumentation output or logcat

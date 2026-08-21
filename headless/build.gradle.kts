@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.headless.browser"
+    namespace = "dev.webdroid"
     compileSdk = 34
 
     defaultConfig {
@@ -55,8 +55,8 @@ kotlin {
 publishing {
     publications {
         register<MavenPublication>("release") {
-            groupId = "dev.headless"
-            artifactId = "headless-android"
+            groupId = "dev.webdroid"
+            artifactId = "webdroid"
             version = "1.0.0"
 
             afterEvaluate {
@@ -64,9 +64,9 @@ publishing {
             }
 
             pom {
-                name.set("Headless Android")
+                name.set("WebDroid")
                 description.set("Playwright-shaped browser automation SDK for Android")
-                url.set("https://github.com/loyality7/headless-android")
+                url.set("https://github.com/loyality7/webdroid")
                 licenses {
                     license {
                         name.set("The Apache Software License, Version 2.0")
@@ -80,9 +80,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection.set("scm:git:github.com/loyality7/headless-android.git")
-                    developerConnection.set("scm:git:ssh://github.com/loyality7/headless-android.git")
-                    url.set("https://github.com/loyality7/headless-android")
+                    connection.set("scm:git:github.com/loyality7/webdroid.git")
+                    developerConnection.set("scm:git:ssh://github.com/loyality7/webdroid.git")
+                    url.set("https://github.com/loyality7/webdroid")
                 }
             }
         }

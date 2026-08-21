@@ -1,17 +1,17 @@
-# Headless Android SDK
+# WebDroid
 
 A browser automation library for Android. Drive live Chromium pages programmatically inside Android applications without external servers, Node.js runtimes, USB cables, or visible UI.
 
 ## Architecture
 
-Headless Android hosts an in-process, offscreen `android.webkit.WebView` instance sharing the system Chromium engine.
+WebDroid hosts an in-process, offscreen `android.webkit.WebView` instance sharing the system Chromium engine.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          Host Android Application                           │
 │                                                                             │
 │  ┌──────────────────────┐   Coroutine API      ┌─────────────────────────┐  │
-│  │   Application Logic  │ ───────────────────> │   Headless Android SDK  │  │
+│  │   Application Logic  │ ───────────────────> │         WebDroid          │  │
 │  └──────────────────────┘                      └──────────┬──────────────┘  │
 │                                                           │                 │
 │                                                 In-Process Interaction      │
@@ -44,7 +44,7 @@ With it `true`, the SDK also actively connects to that endpoint itself after the
 
 ## Installation
 
-To include Headless Android SDK in your project:
+To include WebDroid in your project:
 
 ```kotlin
 repositories {
@@ -54,7 +54,7 @@ repositories {
 
 dependencies {
     // Local build artifact (generated via `./gradlew publishToMavenLocal`):
-    implementation("dev.headless:headless-android:1.1.0-SNAPSHOT")
+    implementation("dev.webdroid:webdroid:1.1.0-SNAPSHOT")
 
     // Or include directly as a multi-module project dependency:
     // implementation(project(":headless"))
@@ -68,10 +68,10 @@ dependencies {
 ### Navigation and DOM Scraping via HeadlessBrowser Facade
 
 ```kotlin
-import dev.headless.browser.BrowserConfig
-import dev.headless.browser.HeadlessBrowser
-import dev.headless.browser.Viewport
-import dev.headless.browser.WaitUntil
+import dev.webdroid.BrowserConfig
+import dev.webdroid.HeadlessBrowser
+import dev.webdroid.Viewport
+import dev.webdroid.WaitUntil
 
 suspend fun scrapeTopStory(context: Context) {
     val config = BrowserConfig(enableProtocolBackend = false)
@@ -96,7 +96,7 @@ suspend fun scrapeTopStory(context: Context) {
 ### Form Input Automation
 
 ```kotlin
-import dev.headless.browser.Page
+import dev.webdroid.Page
 
 suspend fun submitForm(page: Page) {
     page.type("#username", "alice")
@@ -109,7 +109,7 @@ suspend fun submitForm(page: Page) {
 ### Diagnostic Screenshot
 
 ```kotlin
-import dev.headless.browser.Page
+import dev.webdroid.Page
 
 suspend fun captureScreenshot(page: Page): ByteArray {
     return page.screenshot()

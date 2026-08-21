@@ -47,7 +47,7 @@ jobs:
           arch: x86_64
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096
           disable-animations: true
-          script: ./gradlew :headless:connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.annotation=dev.headless.browser.LiveSite
+          script: ./gradlew :headless:connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.annotation=dev.webdroid.LiveSite
 
       - name: Upload results
         if: always()
