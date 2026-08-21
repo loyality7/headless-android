@@ -49,13 +49,17 @@ public class PageImpl internal constructor(
     private val platformScreenshotEngine = PlatformScreenshotEngine(session, config)
     private val platformStorageEngine = PlatformStorageEngine(session, platformScriptEngine, config)
     private val platformChannelEngine = PlatformChannelEngine(session, config)
+    // Deliberately not wired up automatically: ServiceWorkerControllerCompat is
+    // process-global, so calling setupServiceWorkerInterception() from every
+    // PageImpl's constructor points that global client at whichever page's
+    // router was built most recently — a later, unrelated page's requests then
+    // route through an earlier page's (possibly already-closed) router. Exactly
+    // the shared-global-state failure shape SessionRegistry exists to avoid
+    // elsewhere in this class; confirmed live in the instrumented suite, where
+    // an unrelated later test failed only when run after a PageImpl-based one.
+    // No public Page method currently opts a caller into this, so it stays
+    // constructed but unused until that's designed deliberately.
     private val platformServiceWorkerEngine = PlatformServiceWorkerEngine(platformRouter)
-
-    init {
-        // Best-effort: routes this page's blockTypes()/route() rules to service
-        // worker requests too, on devices that support it. A no-op elsewhere.
-        platformServiceWorkerEngine.setupServiceWorkerInterception()
-    }
 
     private val backendRouter = BackendRouter(
         session = session,
