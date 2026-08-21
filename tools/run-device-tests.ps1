@@ -15,7 +15,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 $root = Split-Path -Parent $PSScriptRoot
-$pkg = "dev.headless.browser.test"
+$pkg = "dev.webdroid.test"
 $runner = "$pkg/androidx.test.runner.AndroidJUnitRunner"
 $apk = Join-Path $root "headless\build\outputs\apk\androidTest\debug\headless-debug-androidTest.apk"
 
@@ -59,7 +59,7 @@ $install = adb install -r -t $apk 2>&1
 if ($install -match "Success") { Ok "installed" } else { Bad "$install"; exit 1 }
 
 Step "running tests"
-$target = if ($Class) { "dev.headless.browser.platform.$Class" } else { "" }
+$target = if ($Class) { "dev.webdroid.platform.$Class" } else { "" }
 $outFile = Join-Path $env:TEMP "headless-tests.out"
 Remove-Item $outFile -ErrorAction SilentlyContinue
 

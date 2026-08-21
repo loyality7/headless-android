@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <activity
-            android:name="dev.headless.probe.HostActivity"
+            android:name="dev.webdroid.probe.HostActivity"
             android:exported="true" />
     </application>
 </manifest>

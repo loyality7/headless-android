@@ -61,7 +61,7 @@ jobs:
           # notAnnotation excludes every @LiveSite test: real third-party hosts,
           # whose outages are not this repo's regressions. They run on their own
           # schedule in live-sites.yml instead.
-          script: ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.notClass=dev.headless.browser.protocol.ProtocolCapabilityProbeDeviceTest,dev.headless.probe.DevToolsEndpointTest -Pandroid.testInstrumentationRunnerArguments.notAnnotation=dev.headless.browser.LiveSite
+          script: ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.notClass=dev.webdroid.protocol.ProtocolCapabilityProbeDeviceTest,dev.webdroid.probe.DevToolsEndpointTest -Pandroid.testInstrumentationRunnerArguments.notAnnotation=dev.webdroid.LiveSite
 
       # The measurements are the point of the run, not the pass mark. Kept
       # whatever the outcome so numbers can be compared across runs.

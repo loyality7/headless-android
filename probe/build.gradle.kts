@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.headless.probe"
+    namespace = "dev.webdroid.probe"
     compileSdk = 34
 
     defaultConfig {
