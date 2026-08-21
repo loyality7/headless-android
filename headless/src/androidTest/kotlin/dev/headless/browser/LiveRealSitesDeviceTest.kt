@@ -11,6 +11,8 @@ import dev.headless.browser.protocol.CdpChannel
 import dev.headless.browser.protocol.ProtocolCommandEngine
 import dev.headless.browser.protocol.ProtocolTargetDiscovery
 import dev.headless.browser.protocol.WebSocketClient
+import dev.headless.fixtures.Fixture
+import dev.headless.fixtures.FixtureSite
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -36,6 +38,7 @@ class LiveRealSitesDeviceTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
+    @LiveSite
     fun testLiveHackerNewsNavigationAndExtractionOnDevice() = runBlocking {
         val config = BrowserConfig(enableProtocolBackend = true)
         val session = PageSession(context, Viewport.Phone, config)
@@ -47,6 +50,7 @@ class LiveRealSitesDeviceTest {
 
         try {
             val result = navigator.goto("https://news.ycombinator.com", WaitUntil.Load)
+            assumeLiveSiteHealthy(result.status)
             val title = reader.title()
             assertTrue(
                 "HackerNews returned status ${result.status} (settled=${result.settled}); title: '$title'",
@@ -62,6 +66,7 @@ class LiveRealSitesDeviceTest {
     }
 
     @Test
+    @LiveSite
     fun testLiveWikipediaNavigationAndDomQueryOnDevice() = runBlocking {
         val config = BrowserConfig(enableProtocolBackend = true)
         val session = PageSession(context, Viewport.Phone, config)
@@ -73,6 +78,7 @@ class LiveRealSitesDeviceTest {
 
         try {
             val result = navigator.goto("https://en.wikipedia.org/wiki/Main_Page", WaitUntil.Load)
+            assumeLiveSiteHealthy(result.status)
             val title = reader.title()
             assertTrue(
                 "Wikipedia returned status ${result.status} (settled=${result.settled}); title: '$title'",
@@ -87,13 +93,15 @@ class LiveRealSitesDeviceTest {
     }
 
     @Test
+    @LiveSite
     fun testLiveCdpProtocolEngineOnExampleCom() = runBlocking {
         val config = BrowserConfig(enableProtocolBackend = true)
         val session = PageSession(context, Viewport.Phone, config)
         session.initialize()
 
         val navigator = PlatformNavigator(session, config)
-        navigator.goto("https://example.com", WaitUntil.Load)
+        val navResult = navigator.goto("https://example.com", WaitUntil.Load)
+        assumeLiveSiteHealthy(navResult.status)
 
         val discovery = ProtocolTargetDiscovery(session, config)
 
@@ -141,6 +149,7 @@ class LiveRealSitesDeviceTest {
     }
 
     @Test
+    @LiveSite
     fun testLiveHttpBinJsonFetchAndExtractionOnDevice() = runBlocking {
         val config = BrowserConfig(enableProtocolBackend = true)
         val session = PageSession(context, Viewport.Phone, config)
@@ -152,6 +161,7 @@ class LiveRealSitesDeviceTest {
 
         try {
             val result = navigator.goto("https://httpbin.org/get", WaitUntil.Load)
+            assumeLiveSiteHealthy(result.status)
             val text = reader.text()
             assertTrue(
                 "httpbin.org returned status ${result.status} (settled=${result.settled}); response text: '${text.take(100)}'",
@@ -184,7 +194,7 @@ class LiveRealSitesDeviceTest {
 
     @Test
     fun testLiveRendererRecoveryOnDevice() = runBlocking {
-        val config = BrowserConfig(enableProtocolBackend = false)
+        val config = BrowserConfig(enableProtocolBackend = false, allowPrivateAddresses = true)
         val session = PageSession(context, Viewport.Phone, config)
         session.initialize()
 
@@ -200,12 +210,14 @@ class LiveRealSitesDeviceTest {
         val navigator = PlatformNavigator(session, config)
         val reader = PlatformReader(session, dev.headless.browser.platform.PlatformScriptEngine(session, config), config)
 
-        try {
-            navigator.goto("https://example.com", WaitUntil.Load)
-            val title = reader.title()
-            assertTrue("Recovered session should render page", title.contains("Example Domain"))
-        } finally {
-            session.close()
+        FixtureSite().use { site ->
+            try {
+                navigator.goto(site.url(Fixture.Static), WaitUntil.Load)
+                val title = reader.title()
+                assertTrue("Recovered session should render page", title == "static")
+            } finally {
+                session.close()
+            }
         }
     }
 
@@ -228,24 +240,26 @@ class LiveRealSitesDeviceTest {
 
     @Test
     fun testLiveSessionMetricsTrackingOnDevice() = runBlocking {
-        val config = BrowserConfig(enableProtocolBackend = false)
+        val config = BrowserConfig(enableProtocolBackend = false, allowPrivateAddresses = true)
         val session = PageSession(context, Viewport.Phone, config)
         session.initialize()
 
         val navigator = PlatformNavigator(session, config)
         val scriptEngine = PlatformScriptEngine(session, config)
 
-        try {
-            navigator.goto("https://example.com", WaitUntil.Load)
-            scriptEngine.evaluate("1 + 1")
-            scriptEngine.evaluate("'hello' + ' world'")
+        FixtureSite().use { site ->
+            try {
+                navigator.goto(site.url(Fixture.Static), WaitUntil.Load)
+                scriptEngine.evaluate("1 + 1")
+                scriptEngine.evaluate("'hello' + ' world'")
 
-            val metrics = session.metrics()
-            assertTrue("Session duration should be > 0", metrics.sessionDurationMs >= 0)
-            assertEquals("Navigations count should be 1", 1, metrics.totalNavigations)
-            assertEquals("JS evaluations count should be 2", 2, metrics.totalJsEvaluations)
-        } finally {
-            session.close()
+                val metrics = session.metrics()
+                assertTrue("Session duration should be > 0", metrics.sessionDurationMs >= 0)
+                assertEquals("Navigations count should be 1", 1, metrics.totalNavigations)
+                assertEquals("JS evaluations count should be 2", 2, metrics.totalJsEvaluations)
+            } finally {
+                session.close()
+            }
         }
     }
 }

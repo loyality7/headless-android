@@ -109,6 +109,7 @@ class PlatformRouterTest {
     }
 
     @Test
+    @dev.headless.browser.LiveSite
     fun liveInternetWebsiteImageBlockingTest() = runBlocking {
         router.blockTypes(ResourceType.Images)
         val liveUrls = CopyOnWriteArrayList<String>()

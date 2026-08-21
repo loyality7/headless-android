@@ -94,6 +94,7 @@ class HeadlessBrowserFacadeDeviceTest {
     }
 
     @Test
+    @LiveSite
     fun facadeLiveInternetNavigationWithoutMocks() = runBlocking {
         val liveConfig = BrowserConfig(allowPrivateAddresses = false)
         val liveBrowser = HeadlessBrowser.create(context, liveConfig)

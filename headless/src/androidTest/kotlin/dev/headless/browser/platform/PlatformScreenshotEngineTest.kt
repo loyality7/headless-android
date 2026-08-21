@@ -90,6 +90,7 @@ class PlatformScreenshotEngineTest {
     }
 
     @Test
+    @dev.headless.browser.LiveSite
     fun livePublicWebsiteScreenshotTest() = runBlocking {
         navigatorViewport.goto("https://wikipedia.org", WaitUntil.Load)
 
