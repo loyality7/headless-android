@@ -42,6 +42,10 @@ public class PlatformNavigator internal constructor(
         config: BrowserConfig,
     ) : this(session, config, null)
 
+    init {
+        router?.requestActivityTracker = session.requestActivity
+    }
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
@@ -78,16 +82,14 @@ public class PlatformNavigator internal constructor(
         // load event and report settled = true, which returned a page that had
         // not finished building and said it had.
         val startNano = System.nanoTime()
-        var settled: Boolean
-        try {
-            settled = withTimeout(effectiveTimeout) {
-                client.awaitSignal()
-                true
-            }
+        val signalResult = kotlinx.coroutines.withTimeoutOrNull(effectiveTimeout) {
+            client.awaitSignal()
+            true
+        }
+        var settled = signalResult == true
+        if (settled) {
             session.recordNavigation()
-        } catch (e: TimeoutCancellationException) {
-            // Timeout returns what exists, flagged as not settled (settled = false),
-            // rather than throwing away partial content!
+        } else {
             return@runInState NavigationResult(
                 url = client.currentUrl.ifEmpty { url },
                 status = client.lastHttpStatus,
@@ -96,8 +98,7 @@ public class PlatformNavigator internal constructor(
         }
 
         if (settled && waitUntil.needsSettleEngine()) {
-            val elapsedMillis = (System.nanoTime() - startNano) / 1_000_000L
-            val remaining = effectiveTimeout - elapsedMillis
+            val remaining = dev.headless.browser.core.MonotonicTimeout.remainingMillis(startNano, effectiveTimeout)
             settled = if (remaining <= 0) {
                 false
             } else {

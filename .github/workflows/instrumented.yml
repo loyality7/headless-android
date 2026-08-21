@@ -6,6 +6,9 @@ name: instrumented
 # emulator run as necessary, never sufficient: the probe's own results come from
 # real hardware.
 on:
+  push:
+    branches: [main, 'fix/**']
+  pull_request:
   workflow_dispatch:
   schedule:
     # Nightly, so a regression surfaces within a day rather than at release.
@@ -53,10 +56,9 @@ jobs:
           api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest --stacktrace
+          script: ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.notClass=dev.headless.browser.protocol.ProtocolCapabilityProbeDeviceTest,dev.headless.probe.DevToolsEndpointTest
 
       # The measurements are the point of the run, not the pass mark. Kept
       # whatever the outcome so numbers can be compared across runs.

@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.webkit.WebViewFeature
 import dev.headless.browser.BrowserConfig
+import dev.headless.browser.ResourceType
 import dev.headless.browser.core.PageSession
 import dev.headless.fixtures.FixtureSite
 import kotlinx.coroutines.runBlocking

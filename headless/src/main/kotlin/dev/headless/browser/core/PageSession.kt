@@ -47,7 +47,7 @@ public enum class SessionState {
  * - Main thread operations are marshalled cleanly to the Looper.Main.
  */
 public class PageSession(
-    context: Context,
+    public val context: Context,
     public val viewport: Viewport?,
     public val config: BrowserConfig,
     private val parentJob: Job? = null,
@@ -67,7 +67,12 @@ public class PageSession(
     private val isRendererDead = AtomicBoolean(false)
     private val capabilityProbe = dev.headless.browser.protocol.ProtocolCapabilityProbe(context, config)
 
+    init {
+        dev.headless.browser.platform.MemoryPressureMonitor.register(context)
+    }
+
     private val startTimeMs = System.currentTimeMillis()
+    private val taskStartNano = System.nanoTime()
     private val navigationCount = java.util.concurrent.atomic.AtomicInteger(0)
     private val jsEvalCount = java.util.concurrent.atomic.AtomicInteger(0)
     private val jsExecutionTimeMs = java.util.concurrent.atomic.AtomicLong(0)
@@ -90,6 +95,8 @@ public class PageSession(
     internal val requestActivity: dev.headless.browser.platform.RequestActivityTracker =
         dev.headless.browser.platform.RequestActivityTracker()
 
+    internal val activeCdpChannel: AtomicReference<dev.headless.browser.protocol.CdpChannel?> = AtomicReference(null)
+
     /**
      * Returns snapshot of locally recorded session metrics.
      */
@@ -103,6 +110,7 @@ public class PageSession(
             blockedBytes = blockedBytesCount.get(),
             memoryPressureEvents = registry.totalMemoryLimitRefusals,
             rendererCrashes = registry.totalRendererCrashes + registry.totalRendererOoms,
+            droppedCdpEvents = activeCdpChannel.get()?.droppedEventsCount?.get() ?: 0L,
         )
     }
 
@@ -145,6 +153,11 @@ public class PageSession(
      */
     public suspend fun initialize(): HostedWebView {
         checkNotClosed()
+        dev.headless.browser.platform.MemoryPressureMonitor.register(context)
+        if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
+            registry.recordMemoryLimitRefusal()
+            throw browserError(ErrorCode.MEMORY_LIMIT, "Operation refused due to critical memory pressure")
+        }
         return runCatchingOnMain {
             checkNotClosed()
             checkState(SessionState.Acquired, SessionState.Initialized)
@@ -267,6 +280,11 @@ public class PageSession(
      */
     public suspend fun <T> runInState(targetState: SessionState, block: suspend CoroutineScope.() -> T): T {
         checkNotClosed()
+        if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
+            registry.recordMemoryLimitRefusal()
+            throw browserError(ErrorCode.MEMORY_LIMIT, "Operation refused due to critical memory pressure")
+        }
+        checkTotalTaskBudget()
         val previousState = stateRef.get()
         if (previousState == SessionState.Closed) {
             throw browserError(ErrorCode.DETACHED, "session is closed")
@@ -304,6 +322,22 @@ public class PageSession(
         if (dev.headless.browser.platform.MemoryPressureMonitor.isCriticalMemory()) {
             registry.recordMemoryLimitRefusal()
             throw browserError(ErrorCode.MEMORY_LIMIT, "Refused operation due to critical memory pressure")
+        }
+    }
+
+    /**
+     * The ceiling on the whole task, from session creation, not any one stage.
+     *
+     * Each engine already bounds its own call against its own timeout; nothing
+     * previously bounded the sequence of them, so a caller chaining several
+     * calls that each individually stayed under their own limit could still run
+     * far longer in total than [dev.headless.browser.Timeouts.totalMillis]
+     * promises.
+     */
+    private fun checkTotalTaskBudget() {
+        val remaining = dev.headless.browser.core.MonotonicTimeout.remainingMillis(taskStartNano, config.timeouts.totalMillis)
+        if (remaining <= 0) {
+            throw browserError(ErrorCode.TIMEOUT, "total task budget of ${config.timeouts.totalMillis}ms exceeded")
         }
     }
 

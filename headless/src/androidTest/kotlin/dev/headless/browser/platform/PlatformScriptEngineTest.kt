@@ -76,13 +76,13 @@ class PlatformScriptEngineTest {
     @Test
     fun addInitScriptExecutesBeforePageScripts() = runBlocking {
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            scriptEngine.addInitScript("window.__init_test = 'injected_before_page';")
+            scriptEngine.addInitScript("window.__init_test = 'injected_before_page';", setOf("*"))
             navigator.goto(site.url(Fixture.ClientRendered), WaitUntil.Load)
             val result = scriptEngine.evaluate("window.__init_test")
             assertEquals("\"injected_before_page\"", result)
         } else {
             val ex = assertThrows(BrowserException::class.java) {
-                runBlocking { scriptEngine.addInitScript("window.x = 1;") }
+                runBlocking { scriptEngine.addInitScript("window.x = 1;", setOf("*")) }
             }
             assertEquals(ErrorCode.UNSUPPORTED, ex.code)
         }

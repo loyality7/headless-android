@@ -22,7 +22,6 @@ internal object MonotonicTimeout {
         block: suspend () -> T,
     ): T {
         val startNano = System.nanoTime()
-        val deadlineNano = startNano + timeoutMillis * 1_000_000L
 
         try {
             return withTimeout(timeoutMillis) {

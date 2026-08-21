@@ -223,6 +223,7 @@ internal class OffscreenHost(private val context: Context) {
             webView.stopLoading()
             webView.loadUrl("about:blank")
             webView.clearHistory()
+            webView.clearCache(true)
             webView.removeAllViews()
         }
         webView.destroy()

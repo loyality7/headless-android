@@ -46,12 +46,15 @@ class LiveRealSitesDeviceTest {
         val reader = PlatformReader(session, scriptEngine, config)
 
         try {
-            navigator.goto("https://news.ycombinator.com", WaitUntil.Load)
+            val result = navigator.goto("https://news.ycombinator.com", WaitUntil.Load)
             val title = reader.title()
-            assertTrue("Title should contain Hacker News", title.contains("Hacker News"))
+            assertTrue(
+                "HackerNews returned status ${result.status} (settled=${result.settled}); title: '$title'",
+                title.contains("Hacker News"),
+            )
 
             val topStory = reader.querySelector(".titleline > a")
-            assertNotNull("Top story link should be found on Hacker News", topStory)
+            assertNotNull("Top story link should be found on Hacker News (status ${result.status})", topStory)
             assertTrue("Top story link text should not be blank", topStory!!.text.isNotBlank())
         } finally {
             session.close()
@@ -69,12 +72,15 @@ class LiveRealSitesDeviceTest {
         val reader = PlatformReader(session, scriptEngine, config)
 
         try {
-            navigator.goto("https://en.wikipedia.org/wiki/Main_Page", WaitUntil.Load)
+            val result = navigator.goto("https://en.wikipedia.org/wiki/Main_Page", WaitUntil.Load)
             val title = reader.title()
-            assertTrue("Wikipedia title should contain Wikipedia", title.contains("Wikipedia"))
+            assertTrue(
+                "Wikipedia returned status ${result.status} (settled=${result.settled}); title: '$title'",
+                title.contains("Wikipedia"),
+            )
 
             val heading = reader.querySelector("#mp-welcome")
-            assertNotNull("Main page welcome section should exist", heading)
+            assertNotNull("Main page welcome section should exist (status ${result.status})", heading)
         } finally {
             session.close()
         }
@@ -145,9 +151,12 @@ class LiveRealSitesDeviceTest {
         val reader = PlatformReader(session, scriptEngine, config)
 
         try {
-            navigator.goto("https://httpbin.org/get", WaitUntil.Load)
+            val result = navigator.goto("https://httpbin.org/get", WaitUntil.Load)
             val text = reader.text()
-            assertTrue("httpbin response should contain headers", text.contains("headers"))
+            assertTrue(
+                "httpbin.org returned status ${result.status} (settled=${result.settled}); response text: '${text.take(100)}'",
+                text.contains("headers"),
+            )
 
             val userAgent = scriptEngine.evaluate("navigator.userAgent") as String
             assertTrue("User agent should be non-blank", userAgent.isNotBlank())

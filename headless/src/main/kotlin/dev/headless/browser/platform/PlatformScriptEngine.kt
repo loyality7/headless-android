@@ -46,12 +46,8 @@ public class PlatformScriptEngine(
         }
 
         val startTime = System.currentTimeMillis()
-        val rawResult = try {
-            withTimeout(effectiveTimeout) {
-                deferred.await()
-            }
-        } catch (e: TimeoutCancellationException) {
-            throw browserError(ErrorCode.TIMEOUT, "script evaluation timed out after ${effectiveTimeout}ms", e)
+        val rawResult = dev.headless.browser.core.MonotonicTimeout.runWithTimeout(effectiveTimeout, "script") {
+            deferred.await()
         }
         val elapsed = System.currentTimeMillis() - startTime
         session.recordJsEvaluation(elapsed)
@@ -66,23 +62,26 @@ public class PlatformScriptEngine(
      *   the [WebViewFeature.DOCUMENT_START_SCRIPT] feature.
      */
     @android.annotation.SuppressLint("RequiresFeature")
-    public suspend fun addInitScript(script: String): Unit = session.runInState(SessionState.Operating) {
+    public suspend fun addInitScript(
+        script: String,
+        allowedOrigins: Set<String>,
+    ): Unit = session.runInState(SessionState.Operating) {
         dev.headless.browser.core.CapabilityGuard.requireDocumentStartScript(session.capabilities())
 
         val hosted = session.hostedWebView
         withContext(Dispatchers.Main) {
-            WebViewCompat.addDocumentStartJavaScript(hosted.webView, script, setOf("*"))
+            WebViewCompat.addDocumentStartJavaScript(hosted.webView, script, allowedOrigins)
         }
-    }
-
-    private fun truncateIfNeeded(raw: String?): String? {
-        if (raw == null) return null
-        if (raw.length <= MAX_OUTPUT_CHARS) return raw
-        return raw.substring(0, MAX_OUTPUT_CHARS) + "\n... [truncated ${raw.length - MAX_OUTPUT_CHARS} characters]"
     }
 
     public companion object {
         /** 1 million characters output cap (~1 MB UTF-16) to prevent OOM. */
         public const val MAX_OUTPUT_CHARS: Int = 1_000_000
+
+        internal fun truncateIfNeeded(raw: String?): String? {
+            if (raw == null) return null
+            if (raw.length <= MAX_OUTPUT_CHARS) return raw
+            return raw.substring(0, MAX_OUTPUT_CHARS) + "\n... [truncated ${raw.length - MAX_OUTPUT_CHARS} characters]"
+        }
     }
 }

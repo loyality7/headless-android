@@ -3,6 +3,7 @@ package dev.headless.browser.platform
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.headless.browser.BrowserConfig
+import dev.headless.browser.ResourceType
 import dev.headless.browser.WaitUntil
 import dev.headless.browser.core.PageSession
 import dev.headless.fixtures.Fixture

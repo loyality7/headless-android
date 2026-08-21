@@ -41,13 +41,6 @@ public object MemoryPressureMonitor : ComponentCallbacks2 {
      */
     public fun isCriticalMemory(): Boolean = isCritical.get()
 
-    /**
-     * Simulates critical memory pressure state for testing purposes.
-     */
-    public fun setSimulatedCritical(critical: Boolean) {
-        isCritical.set(critical)
-    }
-
     override fun onTrimMemory(level: Int) {
         when (level) {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
@@ -55,12 +48,22 @@ public object MemoryPressureMonitor : ComponentCallbacks2 {
                 isCritical.set(true)
             }
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE,
-            ComponentCallbacks2.TRIM_MEMORY_BACKGROUND,
-            ComponentCallbacks2.TRIM_MEMORY_MODERATE,
-            ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
-                // Low/moderate pressure; reset critical flag if memory recovered
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
+                // These are foreground memory-pressure levels below critical: a
+                // real signal that pressure eased, not just that the app changed
+                // visibility. UI_HIDDEN, BACKGROUND and (background) MODERATE are
+                // deliberately excluded — they fire on a foreground/background
+                // transition regardless of memory state, and clearing the flag on
+                // one of those used to let a session marked critical un-mark
+                // itself the instant the host app was merely backgrounded, with
+                // nothing actually reclaimed.
                 isCritical.set(false)
+            }
+            ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN,
+            ComponentCallbacks2.TRIM_MEMORY_BACKGROUND,
+            ComponentCallbacks2.TRIM_MEMORY_MODERATE -> {
+                // Visibility/background-depth signals, not a memory-recovered
+                // signal: deliberately left as a no-op. See the comment above.
             }
         }
     }

@@ -73,6 +73,9 @@ public interface Page {
 
     public suspend fun selectOption(selector: String, value: String, timeoutMillis: Long = 0)
 
+    /** Sets the value of a `time`-typed input, for example `"14:30"`. */
+    public suspend fun fillTime(selector: String, time: String, timeoutMillis: Long = 0)
+
     // ---- script ----------------------------------------------------------
 
     /**
@@ -91,7 +94,10 @@ public interface Page {
      * @throws BrowserException [ErrorCode.UNSUPPORTED] where the device's
      *   WebView cannot install one. There is no silent fallback.
      */
-    public suspend fun addInitScript(script: String)
+    public suspend fun addInitScript(
+        script: String,
+        allowedOrigins: Set<String>,
+    )
 
     /**
      * Exposes a native function to page context, over an origin-scoped channel.
@@ -118,6 +124,11 @@ public interface Page {
      * protocol at all.
      */
     public suspend fun route(pattern: String, handler: suspend (Route) -> Unit)
+
+    /**
+     * Blocks loading of specific resource categories (e.g. ResourceType.Images, ResourceType.Fonts).
+     */
+    public suspend fun blockResourceTypes(vararg types: ResourceType)
 
     public fun onRequest(listener: (Request) -> Unit)
 

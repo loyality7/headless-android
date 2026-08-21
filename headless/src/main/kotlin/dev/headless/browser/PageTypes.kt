@@ -83,21 +83,61 @@ public class Response internal constructor(
 
 /** What a request is for, so rules can be written against categories rather than extensions. */
 public enum class ResourceType {
-    Document, Stylesheet, Script, Image, Font, Media, Fetch, Other,
+    Document, Stylesheet, Script, Image, Images, Font, Fonts, Media, Fetch, Other,
 }
 
 /**
  * A request paused by a matching route rule. Exactly one of the two calls must
  * be made, or the page waits until its navigation ceiling.
  */
-public interface Route {
-    public val request: Request
+public class Route internal constructor(
+    public val url: String,
+    public val method: String,
+    public val headers: Map<String, String>,
+) {
+    public val request: Request = Request(url, method, headers, ResourceType.Other)
 
-    /** Fails the request. This is the mechanism behind the library's largest saving. */
-    public suspend fun abort()
+    internal var action: Action = Action.Continue
+    internal var syntheticResponse: android.webkit.WebResourceResponse? = null
 
-    /** Lets the request proceed untouched. */
-    public suspend fun resume()
+    public fun abort() {
+        action = Action.Abort
+    }
+
+    public fun fulfill(
+        mimeType: String = "text/plain",
+        encoding: String = "UTF-8",
+        statusCode: Int = 200,
+        reasonPhrase: String = "OK",
+        headers: Map<String, String> = emptyMap(),
+        body: ByteArray = ByteArray(0),
+    ) {
+        action = Action.Fulfill
+        val response = android.webkit.WebResourceResponse(
+            mimeType,
+            encoding,
+            statusCode,
+            reasonPhrase,
+            headers,
+            java.io.ByteArrayInputStream(body),
+        )
+        syntheticResponse = response
+    }
+
+    @Deprecated("Identical to continue(); kept only for source compatibility.", ReplaceWith("`continue`()"))
+    public fun resume() {
+        action = Action.Continue
+    }
+
+    public fun `continue`() {
+        action = Action.Continue
+    }
+
+    internal enum class Action {
+        Abort,
+        Fulfill,
+        Continue,
+    }
 }
 
 /** A JavaScript dialog the page opened. Unanswered dialogs block the page. */

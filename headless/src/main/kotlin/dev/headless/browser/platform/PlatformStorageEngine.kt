@@ -10,12 +10,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-public data class Cookie(
-    public val name: String,
-    public val value: String,
-    public val domain: String? = null,
-    public val path: String? = null,
-)
+import dev.headless.browser.Cookie
 
 /**
  * Handles cookie management and web storage clearing for the platform backend.
@@ -44,12 +39,30 @@ public class PlatformStorageEngine(
      */
     public suspend fun getCookies(url: String): List<Cookie> = session.runInState(SessionState.Operating) {
         val cookieHeader = cookieManager.getCookie(url) ?: return@runInState emptyList()
+        val parsedDomain = runCatching { java.net.URI(url).host }.getOrNull() ?: ""
         cookieHeader.split(";").mapNotNull { entry ->
             val parts = entry.trim().split("=", limit = 2)
             if (parts.size == 2) {
-                Cookie(name = parts[0].trim(), value = parts[1].trim())
+                Cookie(
+                    name = parts[0].trim(),
+                    value = parts[1].trim(),
+                    domain = parsedDomain,
+                )
             } else null
         }
+    }
+
+    /**
+     * Sets a cookie for the specified [url] or domain.
+     */
+    public suspend fun setCookie(cookie: Cookie): Boolean {
+        val url = if (cookie.domain.startsWith("http://") || cookie.domain.startsWith("https://")) {
+            cookie.domain
+        } else {
+            "https://${cookie.domain.removePrefix(".")}${cookie.path}"
+        }
+        val header = "${cookie.name}=${cookie.value}; Domain=${cookie.domain}; Path=${cookie.path}"
+        return setCookie(url, header)
     }
 
     /**

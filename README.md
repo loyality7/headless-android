@@ -28,7 +28,9 @@ Headless Android hosts an in-process, offscreen `android.webkit.WebView` instanc
 
 - **Offscreen Execution**: Runs WebViews offscreen (`AttachedToHost` or `Detached`) with zero visible UI artifacts.
 - **Playwright-like API**: Coroutine-based APIs for navigation (`goto`), DOM reading (`querySelector`, `text`, `content`), script evaluation (`evaluate`), and form input (`fillTime`, `press`).
+- **Dual Backend, Chosen per Capability**: A platform backend (`androidx.webkit`) serves every device. When `enableProtocolBackend = true` and the device's WebView answers over CDP, the SDK additionally opens that connection after the first navigation and prefers it for text, DOM, script evaluation and clicks — with an automatic, silent fall-back to the platform backend if the connection can't be made.
 - **Automatic Renderer Recovery**: Uses `WebViewRenderProcessClient` to detect unresponsive renderers and trigger automatic recovery.
+- **Whole-Task Timeout**: `BrowserConfig.timeouts.totalMillis` bounds an entire session's lifetime, not just each individual stage — a chain of calls that each stay under their own timeout can still be cut off once the total budget is spent.
 - **Zero-Telemetry Local Metrics**: In-memory `SessionMetrics` diagnostic tracking (navigations, JS execution time, memory pressure events, crashes) with zero external data transmission.
 - **SSRF & Security Guards**: Enforces `SsrfGuard` URL validation and strict opt-in gating for DevTools debugging.
 
@@ -38,51 +40,55 @@ Enabling the protocol backend (`enableProtocolBackend = true`) calls `android.we
 
 On Android, web contents debugging is a process-wide setting that exposes all WebViews in the application to Chrome DevTools over USB (`chrome://inspect`). Keep `enableProtocolBackend = false` in production builds unless remote inspection is explicitly required.
 
+With it `true`, the SDK also actively connects to that endpoint itself after the page's first navigation, to serve DOM/text/script/click calls over CDP where available. This is opportunistic: connection failure on a given device silently falls back to the platform backend, and `page.capabilities().protocolBackend` reports whether it actually connected for this session.
+
 ## Installation
 
-Add the dependency to `build.gradle.kts`:
+To include Headless Android SDK in your project:
 
 ```kotlin
 repositories {
     mavenCentral()
-    mavenLocal() // For local builds
+    mavenLocal() // For local builds (`./gradlew publishToMavenLocal`)
 }
 
 dependencies {
-    implementation("dev.headless:headless-android:1.0.0")
+    // Local build artifact (generated via `./gradlew publishToMavenLocal`):
+    implementation("dev.headless:headless-android:1.1.0-SNAPSHOT")
+
+    // Or include directly as a multi-module project dependency:
+    // implementation(project(":headless"))
 }
 ```
 
+*Note: Artifacts are currently built from source or published to `mavenLocal()`. Maven Central release deployment will accompany the v1.1.0 release.*
+
 ## API Usage Examples
 
-### Navigation and DOM Scraping
+### Navigation and DOM Scraping via HeadlessBrowser Facade
 
 ```kotlin
 import dev.headless.browser.BrowserConfig
+import dev.headless.browser.HeadlessBrowser
 import dev.headless.browser.Viewport
 import dev.headless.browser.WaitUntil
-import dev.headless.browser.core.PageSession
-import dev.headless.browser.platform.PlatformNavigator
-import dev.headless.browser.platform.PlatformReader
 
 suspend fun scrapeTopStory(context: Context) {
     val config = BrowserConfig(enableProtocolBackend = false)
-    val session = PageSession(context, Viewport.Phone, config)
-    session.initialize()
+    val browser = HeadlessBrowser.create(context, config)
+    val page = browser.newPage(Viewport.Phone)
 
     try {
-        val navigator = PlatformNavigator(session, config)
-        val reader = PlatformReader(session, null, config)
+        page.goto("https://news.ycombinator.com", WaitUntil.Load)
 
-        navigator.goto("https://news.ycombinator.com", WaitUntil.Load)
-
-        val title = reader.title()
-        val topStory = reader.querySelector(".titleline > a")
+        val title = page.title()
+        val topStory = page.querySelector(".titleline > a")
 
         println("Page Title: $title")
         println("Top Headline: ${topStory?.text}")
     } finally {
-        session.close()
+        page.close()
+        browser.close()
     }
 }
 ```
@@ -90,43 +96,39 @@ suspend fun scrapeTopStory(context: Context) {
 ### Form Input Automation
 
 ```kotlin
-import dev.headless.browser.platform.PlatformInputEngine
+import dev.headless.browser.Page
 
-suspend fun submitForm(session: PageSession, config: BrowserConfig) {
-    val inputEngine = PlatformInputEngine(session, null, null, config)
-
-    inputEngine.type("#username", "alice")
-    inputEngine.type("#password", "Password123!")
-    inputEngine.fillTime("#appointment-time", "14:30")
-    inputEngine.press("#password", "Enter")
+suspend fun submitForm(page: Page) {
+    page.type("#username", "alice")
+    page.type("#password", "Password123!")
+    page.fillTime("#appointment-time", "14:30")
+    page.press("#password", "Enter")
 }
 ```
 
 ### Diagnostic Screenshot
 
 ```kotlin
-import dev.headless.browser.platform.PlatformScreenshotEngine
-import dev.headless.browser.platform.ScreenshotOptions
+import dev.headless.browser.Page
 
-suspend fun captureScreenshot(session: PageSession, config: BrowserConfig): ByteArray {
-    val screenshotEngine = PlatformScreenshotEngine(session, config)
-    return screenshotEngine.screenshot(ScreenshotOptions())
+suspend fun captureScreenshot(page: Page): ByteArray {
+    return page.screenshot()
 }
 ```
 
-### Session Diagnostics
+### Capability Probing
 
 ```kotlin
-val metrics = session.metrics()
-println("Duration: ${metrics.sessionDurationMs} ms")
-println("Navigations: ${metrics.totalNavigations}")
-println("JS Evaluations: ${metrics.totalJsEvaluations}")
+val caps = page.capabilities()
+println("Protocol backend connected: ${caps.protocolBackend}")
+println("Screenshots supported: ${caps.screenshots}")
 ```
 
 ## System Constraints
 
 - **Threading Model**: Main-thread WebView calls are marshaled internally. Long-running sessions should be bound to a `ForegroundService`.
-- **Cookie Storage**: `CookieManager` is process-global. Call `storageEngine.clearAllData()` between distinct sessions to prevent cookie bleed.
+- **Cookie Storage**: `CookieManager` is process-global. Call `page.clearCookies()` between distinct sessions to prevent cookie bleed.
+- **Total Task Timeout**: `BrowserConfig.timeouts.totalMillis` (default 120s) bounds a session's whole lifetime from creation, not per call. A session held open across many independent operations past that budget starts raising `ErrorCode.TIMEOUT` — raise `totalMillis` for long-lived sessions.
 - **Requirements**: Minimum SDK 26 (Android 8.0+).
 
 ## License

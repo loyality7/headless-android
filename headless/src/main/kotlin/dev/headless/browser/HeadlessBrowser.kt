@@ -55,6 +55,6 @@ public interface HeadlessBrowser {
         public fun create(
             context: Context,
             config: BrowserConfig = BrowserConfig(),
-        ): HeadlessBrowser = TODO("Implemented in #32, once both backends exist")
+        ): HeadlessBrowser = dev.headless.browser.core.HeadlessBrowserImpl(context, config)
     }
 }
