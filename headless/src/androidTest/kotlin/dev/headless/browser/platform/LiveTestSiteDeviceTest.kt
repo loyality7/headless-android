@@ -5,7 +5,10 @@ import androidx.test.platform.app.InstrumentationRegistry
 import dev.headless.browser.BrowserConfig
 import dev.headless.browser.Viewport
 import dev.headless.browser.WaitUntil
+import dev.headless.browser.LiveSite
 import dev.headless.browser.core.PageSession
+import dev.headless.fixtures.Fixture
+import dev.headless.fixtures.FixtureSite
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertNotNull
@@ -27,7 +30,7 @@ class LiveTestSiteDeviceTest {
 
     @Before
     fun setUp() = runBlocking {
-        val config = BrowserConfig(enableProtocolBackend = false)
+        val config = BrowserConfig(enableProtocolBackend = false, allowPrivateAddresses = true)
         session = PageSession(context, Viewport.Phone, config)
         session.initialize()
         navigator = PlatformNavigator(session, config)
@@ -42,7 +45,37 @@ class LiveTestSiteDeviceTest {
         session.close()
     }
 
+    /**
+     * The always-run replacement for [testLiveHerokuappLoginAutomation]: the
+     * same form-fill-submit-verify flow, against a page this repository owns.
+     */
     @Test
+    fun formAutomationAgainstFixtureSite() = runBlocking {
+        FixtureSite().use { site ->
+            navigator.goto(site.url(Fixture.Login), WaitUntil.Load)
+
+            inputEngine.type("#username", "tomsmith")
+            inputEngine.type("#password", "SuperSecretPassword!")
+            inputEngine.click("button[type='submit']")
+
+            val flash = reader.waitForSelector("#flash", timeoutMillis = 5_000)
+            assertTrue(
+                "Flash message should confirm login success but was: ${flash.text}",
+                flash.text.contains("You logged into a secure area!"),
+            )
+
+            val screenshotBytes = screenshotEngine.screenshot()
+            assertNotNull("Screenshot byte array should not be null", screenshotBytes)
+            assertTrue("Screenshot should contain encoded bytes", screenshotBytes.isNotEmpty())
+
+            val metrics = session.metrics()
+            assertTrue("Metrics should record navigation", metrics.totalNavigations >= 1)
+            assertTrue("Metrics should record JS evaluations", metrics.totalJsEvaluations > 0)
+        }
+    }
+
+    @Test
+    @LiveSite
     fun testLiveHerokuappLoginAutomation() = runBlocking {
         // Step 1: Open live HTML test site login page
         navigator.goto("https://the-internet.herokuapp.com/login", WaitUntil.Load)
